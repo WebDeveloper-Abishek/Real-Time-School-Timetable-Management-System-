@@ -1,0 +1,496 @@
+/* Main Navbar */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1.5rem;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 65px;
+}
+
+/* Logo */
+.navbar-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #fff;
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+.logo {
+    height: 60px;
+    width: auto;
+    padding: 8px;
+    margin-top: 0;
+    filter: brightness(1.3) drop-shadow(0 2px 4px rgba(255, 255, 255, 0.2));
+    max-width: 100%;
+    object-fit: contain;
+    transition: all 0.3s ease;
+}
+
+.logo:hover {
+    filter: brightness(1.4) drop-shadow(0 4px 8px rgba(255, 255, 255, 0.3));
+    transform: scale(1.02);
+}
+
+/* Desktop Navigation Links */
+.navbar-links {
+    display: flex;
+    gap: 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    justify-content: center;
+    max-width: 500px;
+}
+
+.navbar-links .link {
+    color: #fff;
+    text-decoration: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    transition: color 0.3s, background 0.3s;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.16rem;
+    font-family: inherit;
+    outline: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.navbar-links .link:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.navbar-links .link:hover {
+    color: #FFD700;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-links .link.active {
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.2);
+}
+
+/* Login Button */
+.navbar-buttons {
+    display: flex;
+    gap: 0.8rem;
+    flex-shrink: 0;
+}
+
+.login-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    border: 2px solid #FFD700;
+    background: transparent;
+    color: #FFD700;
+    font-weight: 600;
+    transition: all 0.3s;
+    min-width: 110px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 1.01rem;
+}
+
+.login-btn:hover {
+    background: #FFD700;
+    color: #111;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.5);
+}
+
+/* Hamburger Menu Button */
+.hamburger-menu {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px;
+    height: 30px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+    outline: none;
+}
+
+.hamburger-menu:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.hamburger-line {
+    width: 100%;
+    height: 3px;
+    background: #fff;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+.hamburger-line.active:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-line.active:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-line.active:nth-child(3) {
+    transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Side Navigation */
+.side-nav {
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
+    transition: right 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.side-nav.open {
+    right: 0;
+}
+
+.side-nav-content {
+    padding: 1.5rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.side-nav-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.side-nav-logo .logo {
+    height: 55px;
+    width: auto;
+    filter: brightness(1.3) drop-shadow(0 2px 4px rgba(255, 255, 255, 0.2));
+}
+
+.side-nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+}
+
+.side-link {
+    color: #fff;
+    text-decoration: none;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 1.11rem;
+    font-family: inherit;
+    text-align: left;
+    outline: none;
+    font-weight: 500;
+}
+
+.side-link:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.side-link:hover {
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    transform: translateX(5px);
+}
+
+.side-link.active {
+    color: #FFD700;
+    background: rgba(255, 215, 0, 0.2);
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    transform: translateX(8px);
+}
+
+.side-nav-buttons {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.side-login-btn {
+    display: block;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border-radius: 25px;
+    border: 2px solid #FFD700;
+    background: transparent;
+    color: #FFD700;
+    font-weight: 600;
+    transition: all 0.3s;
+    text-align: center;
+    text-decoration: none;
+    font-size: 1.01rem;
+}
+
+.side-login-btn:hover {
+    background: #FFD700;
+    color: #111;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.5);
+}
+
+/* Menu Overlay */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none;
+}
+
+/* Responsive Design - Following About Section Breakpoints */
+
+/* Large screens optimization */
+@media (min-width: 1200px) {
+    .navbar {
+        padding: 0.7rem 1.8rem;
+    }
+    
+    .navbar-links {
+        gap: 1.8rem;
+    }
+    
+    .navbar-links .link {
+        padding: 0.5rem 1rem;
+        font-size: 1.2rem;
+    }
+    
+    .logo {
+        height: 65px;
+    }
+    
+    .login-btn {
+        padding: 0.7rem 1.4rem;
+        font-size: 1.1rem;
+        min-width: 120px;
+    }
+}
+
+/* Medium screens optimization */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .navbar {
+        padding: 0.6rem 1.5rem;
+    }
+    
+    .navbar-links {
+        gap: 1.5rem;
+    }
+    
+    .navbar-links .link {
+        padding: 0.4rem 0.8rem;
+        font-size: 1.15rem;
+    }
+    
+    .logo {
+        height: 60px;
+    }
+    
+    .login-btn {
+        padding: 0.6rem 1.3rem;
+        font-size: 1.05rem;
+        min-width: 115px;
+    }
+}
+
+/* Tablet optimization */
+@media (min-width: 481px) and (max-width: 768px) {
+    .navbar-links,
+    .navbar-buttons {
+        display: none;
+    }
+
+    .hamburger-menu {
+        display: flex;
+    }
+
+    .menu-overlay {
+        display: block;
+    }
+
+    .navbar {
+        padding: 0.8rem 1.5rem;
+    }
+    
+    .logo {
+        height: 55px;
+    }
+    
+    .hamburger-menu {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .side-nav {
+        width: 270px;
+        right: -270px;
+    }
+    
+    .side-nav-content {
+        padding: 1.4rem 1.1rem;
+    }
+    
+    .side-nav-logo .logo {
+        height: 55px;
+    }
+    
+    .side-link {
+        font-size: 1.15rem;
+        padding: 0.9rem 1.1rem;
+    }
+    
+    .side-login-btn {
+        font-size: 1.05rem;
+        padding: 0.9rem 1.1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar-links,
+    .navbar-buttons {
+        display: none;
+    }
+
+    .hamburger-menu {
+        display: flex;
+    }
+
+    .menu-overlay {
+        display: block;
+    }
+
+    .navbar {
+        padding: 0.8rem 1.2rem;
+    }
+    
+    .logo {
+        height: 50px;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar {
+        padding: 0.6rem 1rem;
+        min-height: 60px;
+    }
+    
+    .logo {
+        height: 45px;
+        padding: 4px;
+    }
+    
+    .hamburger-menu {
+        width: 25px;
+        height: 25px;
+    }
+    
+    .side-nav {
+        width: 260px;
+        right: -260px;
+    }
+    
+    .side-nav-content {
+        padding: 1.2rem 1rem;
+    }
+    
+    .side-nav-logo .logo {
+        height: 50px;
+    }
+    
+    .side-link {
+        font-size: 1.05rem;
+        padding: 0.8rem 1rem;
+    }
+    
+    .side-login-btn {
+        font-size: 1rem;
+        padding: 0.8rem 1rem;
+    }
+}
+
+@media (max-width: 320px) {
+    .navbar {
+        padding: 0.5rem 0.8rem;
+        min-height: 55px;
+    }
+    
+    .logo {
+        height: 40px;
+        padding: 3px;
+    }
+    
+    .hamburger-menu {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .side-nav {
+        width: 240px;
+        right: -240px;
+    }
+    
+    .side-nav-content {
+        padding: 1rem 0.8rem;
+    }
+    
+    .side-nav-logo .logo {
+        height: 45px;
+    }
+    
+    .side-link {
+        font-size: 1rem;
+        padding: 0.7rem 0.9rem;
+    }
+    
+    .side-login-btn {
+        font-size: 0.95rem;
+        padding: 0.7rem 0.9rem;
+    }
+}
+
+@media (min-width: 769px) {
+    .side-nav,
+    .menu-overlay {
+        display: none !important;
+    }
+}

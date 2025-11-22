@@ -1,0 +1,45 @@
+/* Admin Attendance - Unique Class Names */
+.adminattend-alerts-container { position: fixed; top: 80px; right: 20px; z-index: 1000; max-width: 400px; }
+.adminattend-alert { padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: white; font-weight: 500; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.adminattend-alert-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.adminattend-alert-error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.adminattend-container { max-width: 1400px; margin: 0 auto; padding: 0 2rem 2rem; }
+.adminattend-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.08); border: 1px solid rgba(226, 232, 240, 0.8); }
+.adminattend-page-title { font-size: 2.4rem; font-weight: 700; color: #1e293b; margin: 0; }
+.adminattend-page-subtitle { font-size: 1.1rem; color: #64748b; margin: 0.5rem 0 0; font-weight: 500; }
+.adminattend-btn-export { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 1.1rem 2.2rem; border-radius: 28px; border: none; font-weight: 600; cursor: pointer; }
+.adminattend-stats-section { margin-bottom: 2rem; }
+.adminattend-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+.adminattend-stat-card { background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); display: flex; align-items: center; gap: 1rem; }
+.adminattend-stat-icon { width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+.adminattend-stat-present .adminattend-stat-icon { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.adminattend-stat-absent .adminattend-stat-icon { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.adminattend-stat-late .adminattend-stat-icon { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.adminattend-stat-rate .adminattend-stat-icon { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+.adminattend-stat-value { font-size: 1.75rem; font-weight: 800; color: #1e293b; margin: 0; }
+.adminattend-stat-label { font-size: 0.875rem; color: #64748b; margin: 0.5rem 0 0; }
+.adminattend-filters { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; margin-bottom: 2rem; display: flex; gap: 2rem; }
+.adminattend-filter-group { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+.adminattend-filter-group label { font-weight: 600; color: #374151; font-size: 0.9rem; }
+.adminattend-filter-select, .adminattend-filter-input { padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; background: #f9fafb; }
+.adminattend-view-section { background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; overflow: hidden; }
+.adminattend-view-header { background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 1.5rem 2rem; border-bottom: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.adminattend-view-title { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0; }
+.adminattend-date-display { font-size: 0.95rem; color: #64748b; font-weight: 500; }
+.adminattend-records-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; padding: 2rem; }
+.adminattend-record-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+.adminattend-student-info { display: flex; align-items: center; gap: 1rem; }
+.adminattend-student-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; }
+.adminattend-student-name { font-weight: 600; color: #1e293b; margin: 0; }
+.adminattend-period-info { font-size: 0.875rem; color: #64748b; }
+.adminattend-status-badge { padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.875rem; }
+.adminattend-status-present { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+.adminattend-status-absent { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+.adminattend-status-late { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+.adminattend-no-selection, .adminattend-no-data { text-align: center; padding: 4rem 2rem; background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.adminattend-no-selection-icon, .adminattend-no-data-icon { font-size: 4rem; margin-bottom: 1.5rem; }
+.adminattend-loading-container { display: flex; justify-content: center; align-items: center; min-height: 400px; padding: 4rem 2rem; }
+.adminattend-loading { font-size: 1.2rem; color: #6b7280; }
+@media (max-width: 1200px) { .adminattend-stats-grid { grid-template-columns: repeat(2, 1fr); } .adminattend-records-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .adminattend-header { flex-direction: column; gap: 1.5rem; } .adminattend-stats-grid, .adminattend-records-grid { grid-template-columns: 1fr; } }
+

@@ -1,0 +1,23 @@
+.homepage {
+  scroll-behavior: smooth;
+}
+
+/* Global styles for the homepage sections */
+section {
+  position: relative;
+}
+
+/* Ensure proper spacing between sections */
+.welcome-section,
+.about-section,
+.features-section,
+.contact-section {
+  position: relative;
+  z-index: 1;
+}
+
+/* Footer positioning */
+.footer {
+  margin-top: auto;
+}
+

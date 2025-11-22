@@ -1,0 +1,39 @@
+/* Admin Exams - Unique Class Names */
+.adminexam-alerts-container { position: fixed; top: 80px; right: 20px; z-index: 1000; max-width: 400px; }
+.adminexam-alert { padding: 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: white; font-weight: 500; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.adminexam-alert-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.adminexam-alert-error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.adminexam-container { max-width: 1400px; margin: 0 auto; padding: 0 2rem 2rem; }
+.adminexam-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.08); }
+.adminexam-page-title { font-size: 2.4rem; font-weight: 700; color: #1e293b; margin: 0; }
+.adminexam-page-subtitle { font-size: 1.1rem; color: #64748b; margin: 0.5rem 0 0; }
+.adminexam-btn-primary { background: linear-gradient(135deg, #FFD700 0%, #fbbf24 100%); color: #111; padding: 1.1rem 2.2rem; border-radius: 28px; border: none; font-weight: 600; cursor: pointer; }
+.adminexam-filters { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 2rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+.adminexam-filter-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.adminexam-filter-group label { font-weight: 600; color: #374151; }
+.adminexam-filter-select { padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: #f9fafb; }
+.adminexam-view-section { background: white; border-radius: 16px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.adminexam-view-title { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 1.5rem; }
+.adminexam-students-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+.adminexam-student-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; }
+.adminexam-student-info { display: flex; align-items: center; gap: 1rem; }
+.adminexam-student-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; }
+.adminexam-student-details h4 { margin: 0; font-weight: 600; color: #1e293b; }
+.adminexam-student-details span { font-size: 0.875rem; color: #64748b; }
+.adminexam-no-selection { text-align: center; padding: 4rem 2rem; background: white; border-radius: 16px; }
+.adminexam-no-selection-icon { font-size: 4rem; margin-bottom: 1.5rem; }
+.adminexam-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.adminexam-modal { background: white; border-radius: 20px; max-width: 600px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+.adminexam-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 2rem; border-bottom: 2px solid #f1f5f9; }
+.adminexam-modal-header h2 { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 0; }
+.adminexam-close-btn { background: none; border: none; font-size: 2rem; color: #64748b; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; }
+.adminexam-modal-form { padding: 2rem; }
+.adminexam-form-group { margin-bottom: 1.5rem; }
+.adminexam-form-group label { display: block; font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
+.adminexam-form-select, .adminexam-form-input { width: 100%; padding: 0.875rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; background: #f9fafb; }
+.adminexam-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.adminexam-modal-actions { display: flex; gap: 1rem; justify-content: flex-end; padding-top: 2rem; border-top: 2px solid #f1f5f9; }
+.adminexam-btn { padding: 0.875rem 2rem; border-radius: 12px; font-weight: 600; cursor: pointer; border: 2px solid transparent; }
+.adminexam-btn-outline { background: transparent; color: #6b7280; border-color: #d1d5db; }
+@media (max-width: 768px) { .adminexam-filters { grid-template-columns: 1fr; } .adminexam-form-row { grid-template-columns: 1fr; } }
+

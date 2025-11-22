@@ -1,0 +1,304 @@
+.welcome-section {
+  padding: 6rem 2rem;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.85) 0%, rgba(118, 75, 162, 0.85) 100%),
+              url('../../assets/welcomesection.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: white;
+  text-align: center;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.welcome-content {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1rem;
+  box-sizing: border-box;
+}
+
+.welcome-section h1 {
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  line-height: 1.2;
+  word-wrap: break-word;
+  hyphens: auto;
+  max-width: 100%;
+}
+
+.welcome-subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 2.5rem;
+  line-height: 1.6;
+  opacity: 0.9;
+  word-wrap: break-word;
+  hyphens: none;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.welcome-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  text-align: center;
+  box-sizing: border-box;
+  display: inline-block;
+  text-decoration: none;
+  outline: none;
+}
+
+.btn-primary:focus, .btn-secondary:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.btn-primary:active, .btn-secondary:active {
+  outline: none;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background: #FFD700;
+  color: #111;
+  border-color: #FFD700;
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  background: #000 !important;
+  border-color: #000 !important;
+  transform: translateY(-2px) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: white;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+}
+
+/* Large screens optimization */
+@media (min-width: 1200px) {
+  .welcome-section {
+    padding: 8rem 2rem;
+    min-height: 80vh;
+  }
+  
+  .welcome-section h1 {
+    font-size: 3.5rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 1.3rem;
+    line-height: 1.7;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    hyphens: none;
+    word-break: normal;
+  }
+  
+  .welcome-buttons {
+    max-width: 500px;
+  }
+  
+  .btn-primary, .btn-secondary {
+    padding: 16px 32px;
+    font-size: 18px;
+    min-width: 180px;
+  }
+}
+
+/* Medium screens optimization */
+@media (min-width: 769px) and (max-width: 1199px) {
+  .welcome-section {
+    padding: 6rem 2rem;
+    min-height: 70vh;
+  }
+  
+  .welcome-section h1 {
+    font-size: 3rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 1.2rem;
+  }
+  
+  .welcome-buttons {
+    max-width: 450px;
+  }
+  
+  .btn-primary, .btn-secondary {
+    padding: 14px 28px;
+    font-size: 17px;
+    min-width: 160px;
+  }
+}
+
+/* Specific optimization for 768px to 992px range */
+@media (min-width: 768px) and (max-width: 991px) {
+  .welcome-section {
+    padding: 4.5rem 1.5rem;
+    min-height: 65vh;
+  }
+  
+  .welcome-section h1 {
+    font-size: 2.6rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+  }
+  
+  .welcome-buttons {
+    flex-direction: row;
+    gap: 16px;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  
+  .btn-primary, .btn-secondary {
+    flex: 1;
+    padding: 12px 20px;
+    font-size: 16px;
+    min-width: 140px;
+  }
+}
+
+/* Tablet optimization */
+@media (min-width: 481px) and (max-width: 767px) {
+  .welcome-section {
+    padding: 3.5rem 1.5rem;
+    min-height: 60vh;
+    background-attachment: scroll;
+  }
+  
+  .welcome-section h1 {
+    font-size: 2.3rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 1rem;
+    max-width: 500px;
+    margin: 0 auto 2rem;
+  }
+  
+  .welcome-buttons {
+    flex-direction: row;
+    gap: 12px;
+    max-width: 360px;
+    margin: 0 auto;
+  }
+  
+  .btn-primary, .btn-secondary {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 15px;
+    min-width: 120px;
+  }
+}
+
+/* Mobile optimization */
+@media (max-width: 480px) {
+  .welcome-section {
+    padding: 2.5rem 1rem;
+    min-height: 50vh;
+    background-attachment: scroll;
+  }
+  
+  .welcome-section h1 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+    max-width: 350px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .welcome-buttons {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+  
+  .btn-primary, .btn-secondary {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 14px;
+    min-width: 120px;
+    max-width: 140px;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 320px) {
+  .welcome-section {
+    padding: 1.8rem 0.8rem;
+    min-height: 45vh;
+  }
+  
+  .welcome-section h1 {
+    font-size: 1.6rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 0.85rem;
+    max-width: 280px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .welcome-buttons {
+    max-width: 200px;
+    margin: 0 auto;
+  }
+  
+  .btn-primary, .btn-secondary {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-width: 80px;
+    max-width: 90px;
+  }
+}

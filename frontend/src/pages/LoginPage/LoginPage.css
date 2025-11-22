@@ -1,0 +1,244 @@
+/* Reset and base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Main page container */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.85) 0%, rgba(118, 75, 162, 0.85) 100%),
+              url('https://visetech.us/wp-content/uploads/2024/10/School-Management-System-1.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  padding: 20px;
+  position: relative;
+}
+
+/* Back to Home Button */
+.back-to-home-btn {
+  position: fixed;
+  top: 20px;
+  left: 30px;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  color: #000000;
+}
+
+.back-to-home-btn:hover {
+  background: #000000;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.back-to-home-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.back-to-home-btn {
+  font-size: 24px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.back-to-home-btn:hover {
+  transform: translateY(-2px) scale(1.05) translateX(-2px);
+}
+
+/* Login container */
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+/* Login form */
+.login-form {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Form title */
+.form-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1a202c;
+  text-align: center;
+  margin-bottom: 35px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Form groups */
+.form-group {
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 15px;
+  color: #2d3748;
+  margin-bottom: 10px;
+  font-weight: 700;
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Input fields */
+.form-group input {
+  width: 100%;
+  padding: 18px 22px;
+  border: 2px solid #e2e8f0;
+  border-radius: 15px;
+  font-size: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: rgba(255, 255, 255, 0.95);
+  color: #2d3748;
+  outline: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.form-group input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15), 0 8px 25px rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+.form-group input::placeholder {
+  color: #a0aec0;
+  font-weight: 500;
+}
+
+/* Login button */
+.login-button {
+  width: 100%;
+  padding: 18px 22px;
+  background: linear-gradient(135deg, #FFD700 0%, #ffed4e 100%);
+  color: #1a202c;
+  border: none;
+  border-radius: 15px;
+  font-size: 18px;
+  font-weight: 800;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 15px;
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.login-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(255, 215, 0, 0.5);
+  background: linear-gradient(135deg, #ffed4e 0%, #FFD700 100%);
+}
+
+.login-button:active {
+  transform: translateY(-1px);
+}
+
+.login-button:disabled {
+  background: #cbd5e0;
+  color: #718096;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Error message */
+.error-message {
+  background: linear-gradient(135deg, #fed7d7, #feb2b2);
+  color: #c53030;
+  padding: 18px 22px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  text-align: center;
+  border: 1px solid #feb2b2;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 4px 15px rgba(254, 178, 178, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .login-container {
+    max-width: 100%;
+  }
+  
+  .login-form {
+    padding: 2rem 1.5rem;
+    margin: 0 15px;
+  }
+  
+  .form-title {
+    font-size: 28px;
+    margin-bottom: 30px;
+  }
+  
+  .form-group input {
+    padding: 16px 18px;
+    font-size: 16px;
+  }
+  
+  .login-button {
+    padding: 16px 18px;
+    font-size: 16px;
+  }
+  
+  /* Back button mobile adjustments */
+  .back-to-home-btn {
+    top: 15px;
+    left: 30px;
+    width: 45px;
+    height: 45px;
+    font-size: 40px;
+  }
+}
+
+@media (max-width: 320px) {
+  .back-to-home-btn {
+    top: 10px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    font-size: 35px;
+  }
+}
