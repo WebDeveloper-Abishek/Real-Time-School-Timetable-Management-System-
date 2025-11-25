@@ -18,8 +18,7 @@ const AdminSubjects = () => {
   const [editingSubject, setEditingSubject] = useState(null);
   const [alerts, setAlerts] = useState([]);
   
-  // Filters - Now term-based only
-  const [selectedTerm, setSelectedTerm] = useState(searchParams.get('term_id') || '');
+  // Filters - Class-based only
   const [selectedClass, setSelectedClass] = useState(searchParams.get('class_id') || '');
   
   // Form data
@@ -78,12 +77,11 @@ const AdminSubjects = () => {
   // Update URL when filters change
   useEffect(() => {
     const params = {};
-    if (selectedTerm) params.term_id = selectedTerm;
     if (selectedClass) params.class_id = selectedClass;
     setSearchParams(params);
-  }, [selectedTerm, selectedClass, setSearchParams]);
+  }, [selectedClass, setSearchParams]);
 
-  // Fetch subjects when filters change - TERM-BASED FILTERING
+  // Fetch subjects when filters change - CLASS-BASED FILTERING ONLY
   useEffect(() => {
     const fetchSubjects = async () => {
       setLoading(true);
@@ -92,23 +90,8 @@ const AdminSubjects = () => {
         const data = await subjectAPI.getSubjects();
         const allSubjects = Array.isArray(data) ? data : [];
         
-        // Apply filtering
+        // Apply filtering - only by class
         let filteredSubjects = allSubjects;
-        
-        // Filter by term if selected
-        if (selectedTerm) {
-          filteredSubjects = filteredSubjects.filter(subject => {
-            // If subject has no term assigned, don't include it when filtering by specific term
-            if (!subject.term_id) return false;
-            
-            // If subject has term, check if it matches selected term
-            const subjectTermId = typeof subject.term_id === 'object' 
-              ? subject.term_id._id 
-              : subject.term_id;
-            
-            return subjectTermId === selectedTerm;
-          });
-        }
         
         // Filter by class if selected
         if (selectedClass) {
@@ -128,6 +111,7 @@ const AdminSubjects = () => {
         }
         
         console.log('Subjects loaded:', filteredSubjects.length, 'subjects');
+        console.log('Selected class:', selectedClass);
         setSubjects(filteredSubjects);
       } catch (error) {
         console.error('Error fetching subjects:', error);
@@ -139,14 +123,7 @@ const AdminSubjects = () => {
     };
     
     fetchSubjects();
-  }, [selectedTerm, selectedClass]);
-
-  // Reset class filter when term changes
-  useEffect(() => {
-    if (selectedTerm) {
-      setSelectedClass('');
-    }
-  }, [selectedTerm]);
+  }, [selectedClass]);
 
   // Fetch terms when academic year changes - REMOVED selectedAcademicYear dependency
 
@@ -173,19 +150,8 @@ const AdminSubjects = () => {
       const data = await subjectAPI.getSubjects();
       const allSubjects = Array.isArray(data) ? data : [];
       
-      // Apply filtering
+      // Apply filtering - only by class
       let filteredSubjects = allSubjects;
-      
-      // Filter by term if selected
-      if (selectedTerm) {
-        filteredSubjects = filteredSubjects.filter(subject => {
-          if (!subject.term_id) return false;
-          const subjectTermId = typeof subject.term_id === 'object' 
-            ? subject.term_id._id 
-            : subject.term_id;
-          return subjectTermId === selectedTerm;
-        });
-      }
       
       // Filter by class if selected
       if (selectedClass) {
@@ -202,11 +168,9 @@ const AdminSubjects = () => {
         });
       }
       
-        console.log('fetchSubjectsData: Subjects loaded:', filteredSubjects.length, 'subjects');
-        console.log('Selected term:', selectedTerm);
-        console.log('Selected class:', selectedClass);
-        console.log('Filtered subjects:', filteredSubjects);
-        setSubjects(filteredSubjects);
+      console.log('fetchSubjectsData: Subjects loaded:', filteredSubjects.length, 'subjects');
+      console.log('Selected class:', selectedClass);
+      setSubjects(filteredSubjects);
     } catch (error) {
       console.error('Error fetching subjects:', error);
       showMessage('Error fetching subjects: ' + error.message, 'error');
@@ -254,8 +218,8 @@ const AdminSubjects = () => {
 
       const subjectData = {
         subject_name: formData.subject_name.trim(),
-        course_limit: parseInt(formData.course_limit),
-        term_id: formData.term_id || null
+        course_limit: parseInt(formData.course_limit)
+        // term_id will be auto-assigned to Third Term by backend
       };
 
       const response = editingSubject 
@@ -460,7 +424,7 @@ const AdminSubjects = () => {
 
 
   // Debug: Check if component is rendering
-  console.log('AdminSubjects rendering - subjects:', subjects.length, 'loading:', loading, 'selectedTerm:', selectedTerm);
+  console.log('AdminSubjects rendering - subjects:', subjects.length, 'loading:', loading, 'selectedClass:', selectedClass);
 
   return (
     <AdminLayout 
@@ -494,117 +458,69 @@ const AdminSubjects = () => {
         </div>
 
 
-        {/* Enhanced Filters - Term and Class Based */}
+        {/* Enhanced Filters - Class Based Only */}
         <div className="subjects-filters">
           <div className="filters-header">
             <h3>📊 Subject Filtering & Management</h3>
-            <p>Filter subjects by term and class to manage course limits</p>
+            <p>Filter subjects by class to view course limits</p>
           </div>
           
           <div className="filters-grid">
             <div className="filter-group">
-              <label htmlFor="term-filter">
-                <span className="filter-icon">📅</span>
-                Filter by Term:
+              <label htmlFor="class-filter">
+                <span className="filter-icon">🏫</span>
+                Filter by Class:
               </label>
               <select
-                id="term-filter"
-                value={selectedTerm}
-                onChange={(e) => {
-                  setSelectedTerm(e.target.value);
-                  setSelectedClass(''); // Reset class when term changes
-                }}
+                id="class-filter"
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
               >
-                <option value="">All Terms</option>
-                {terms.map(term => (
-                  <option key={term._id} value={term._id}>
-                    {getTermName(term)}
+                <option value="">All Classes</option>
+                {classes.map(classItem => (
+                  <option key={classItem._id} value={classItem._id}>
+                    {classItem.class_name} (Grade {classItem.grade})
                   </option>
                 ))}
               </select>
-              {selectedTerm && (
+              {selectedClass && (
                 <div className="filter-info">
                   <span className="info-icon">ℹ️</span>
-                  <span>Showing subjects for {getTermName(terms.find(t => t._id === selectedTerm))}</span>
+                  <span>Showing subjects for {classes.find(c => c._id === selectedClass)?.class_name}</span>
                 </div>
               )}
             </div>
-            
-            {selectedTerm && (
-              <div className="filter-group">
-                <label htmlFor="class-filter">
-                  <span className="filter-icon">🏫</span>
-                  Filter by Class:
-                </label>
-                <select
-                  id="class-filter"
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                >
-                  <option value="">All Classes in Term</option>
-                  {classes
-                    .filter(classItem => {
-                      // Only show classes assigned to the selected term
-                      const classTermId = typeof classItem.term_id === 'object' 
-                        ? classItem.term_id._id 
-                        : classItem.term_id;
-                      return classTermId === selectedTerm;
-                    })
-                    .map(classItem => (
-                      <option key={classItem._id} value={classItem._id}>
-                        {classItem.class_name} (Grade {classItem.grade})
-                      </option>
-                    ))}
-                </select>
-                {selectedClass && (
-                  <div className="filter-info">
-                    <span className="info-icon">ℹ️</span>
-                    <span>Showing subjects for {classes.find(c => c._id === selectedClass)?.class_name}</span>
-                  </div>
-                )}
-              </div>
-            )}
             
             <div className="filter-actions">
               <button 
                 className="btn btn-outline"
                 onClick={() => {
-                  setSelectedTerm('');
                   setSelectedClass('');
                 }}
               >
-                🔄 Clear Filters
+                🔄 Clear Filter
               </button>
-                <button 
-                  className="btn btn-primary"
-                  onClick={handleOpenModal}
-                  disabled={!selectedTerm}
-                >
-                  ➕ Add Subject to Term
-                </button>
+              <button 
+                className="btn btn-primary"
+                onClick={handleOpenModal}
+              >
+                ➕ Add Subject
+              </button>
             </div>
           </div>
 
           {/* Filter Summary */}
-          {(selectedTerm || selectedClass) && (
+          {selectedClass && (
             <div className="filter-summary">
               <div className="summary-header">
                 <span className="summary-icon">📋</span>
                 <span>Filter Summary</span>
               </div>
               <div className="summary-content">
-                {selectedTerm && (
-                  <div className="summary-item">
-                    <span className="summary-label">Term:</span>
-                    <span className="summary-value">{getTermName(terms.find(t => t._id === selectedTerm))}</span>
-                  </div>
-                )}
-                {selectedClass && (
-                  <div className="summary-item">
-                    <span className="summary-label">Class:</span>
-                    <span className="summary-value">{classes.find(c => c._id === selectedClass)?.class_name}</span>
-                  </div>
-                )}
+                <div className="summary-item">
+                  <span className="summary-label">Class:</span>
+                  <span className="summary-value">{classes.find(c => c._id === selectedClass)?.class_name}</span>
+                </div>
                 <div className="summary-item">
                   <span className="summary-label">Subjects Found:</span>
                   <span className="summary-value">{subjects.length}</span>
@@ -623,10 +539,8 @@ const AdminSubjects = () => {
               <div className="no-data-icon">📚</div>
               <h3>No Subjects Found</h3>
               <p>
-                {selectedTerm && selectedTerm !== ''
-                  ? selectedClass
-                    ? `No subjects found for ${classes.find(c => c._id === selectedClass)?.class_name || 'selected class'} in ${terms.find(t => t._id === selectedTerm) ? getTermName(terms.find(t => t._id === selectedTerm)) : 'selected term'}`
-                    : `No subjects assigned to ${terms.find(t => t._id === selectedTerm) ? getTermName(terms.find(t => t._id === selectedTerm)) : 'selected term'}`
+                {selectedClass
+                  ? `No subjects found for ${classes.find(c => c._id === selectedClass)?.class_name || 'selected class'}`
                   : 'No subjects found. Create your first subject to get started.'
                 }
               </p>
@@ -638,203 +552,92 @@ const AdminSubjects = () => {
               </button>
             </div>
           ) : (
-            subjects.map((subject) => (
-              <div key={subject._id} className="subject-card-clean">
-                {/* Header Section */}
-                <div className="subject-card-header">
-                  <div className="subject-name-section">
-                    <h3 className="subject-name">{subject.subject_name}</h3>
-                    <span className="subject-type-badge">
-                      {subject.subject_type || 'Core'}
-                    </span>
-                  </div>
-                  <div className="subject-base-limit">
-                    <span className="base-limit-icon">⏰</span>
-                    <span className="base-limit-text">{subject.course_limit || 0} periods</span>
-                  </div>
-                </div>
-                
-                {/* Term Assignment */}
-                <div className="subject-term-section">
-                  <div className="term-label">
-                    <span className="term-icon">📅</span>
-                    <span>Term:</span>
-                  </div>
-                  <span className={`term-badge ${subject.term_id ? 'assigned' : 'unassigned'}`}>
-                    {subject.term_id ? '✅' : '⏳'} {getTermName(subject.term_id)}
-                  </span>
-                </div>
-                
-                {/* Class-Specific Course Limits */}
-                <div className="subject-class-limits">
-                  <div className="class-limits-header">
-                    <span className="limits-icon">📊</span>
-                    <span>Class Course Limits</span>
-                    <span className="limits-summary">
-                      {(() => {
-                        const termClasses = classes.filter(classItem => {
-                          const classTermId = typeof classItem.term_id === 'object' 
-                            ? classItem.term_id._id 
-                            : classItem.term_id;
-                          return classTermId === (subject.term_id?._id || subject.term_id);
-                        });
-                        
-                        const assignedClasses = termClasses.filter(classItem => {
-                          return subject.assignments?.some(assignment => {
-                            const assignmentClassId = typeof assignment.class_id === 'object' 
-                              ? assignment.class_id._id 
-                              : assignment.class_id;
-                            return assignmentClassId === classItem._id;
-                          });
-                        });
-                        
-                        return `${assignedClasses.length}/${termClasses.length} classes assigned`;
-                      })()}
-                    </span>
-                  </div>
-                  <div className="class-limits-content">
-                    {(() => {
-                      const termClasses = classes.filter(classItem => {
-                        const classTermId = typeof classItem.term_id === 'object' 
-                          ? classItem.term_id._id 
-                          : classItem.term_id;
-                        return classTermId === (subject.term_id?._id || subject.term_id);
-                      });
-                      
-                      if (termClasses.length === 0) {
-                        return (
-                          <div className="no-classes-message">
-                            <span className="warning-icon">⚠️</span>
-                            <span>No classes assigned to this term</span>
-                          </div>
-                        );
-                      }
-                      
-                      return termClasses.map(classItem => {
-                        const assignment = subject.assignments?.find(assignment => {
-                          const assignmentClassId = typeof assignment.class_id === 'object' 
-                            ? assignment.class_id._id 
-                            : assignment.class_id;
-                          return assignmentClassId === classItem._id;
-                        });
-                        
-                        const courseLimit = assignment?.course_limit || subject.course_limit || 0;
-                        const isAssigned = !!assignment;
-                        
-                        return (
-                          <div key={classItem._id} className={`class-limit-item ${isAssigned ? 'assigned' : 'unassigned'}`}>
-                            <div className="class-info">
-                              <span className="class-name">{classItem.class_name}</span>
-                              <span className="grade-info">Grade {classItem.grade}</span>
-                              {classItem.section && (
-                                <span className="section-info">Section {classItem.section}</span>
-                              )}
-                            </div>
-                            <div className="limit-info">
-                              <div className="limit-value-section">
-                                <span className="limit-value">{courseLimit} periods</span>
-                                <span className={`limit-status ${courseLimit > 0 ? 'valid' : 'invalid'}`}>
-                                  {courseLimit > 0 ? '✅' : '❌'}
-                                </span>
-                              </div>
-                              <span className={`assignment-status ${isAssigned ? 'assigned' : 'unassigned'}`}>
-                                {isAssigned ? '✅ Assigned' : '⏳ Available'}
-                              </span>
-                            </div>
-                            {assignment && (
-                              <div className="teacher-info">
-                                <span className="teacher-name">
-                                  👨‍🏫 {assignment.user_id?.name || 'Unassigned'}
-                                </span>
-                                <span className="assignment-date">
-                                  Assigned: {new Date(assignment.createdAt || Date.now()).toLocaleDateString()}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      });
-                    })()}
+            subjects.map((subject) => {
+              // Get class-specific assignment if class is selected
+              const classAssignment = selectedClass ? subject.assignments?.find(assignment => {
+                const assignmentClassId = typeof assignment.class_id === 'object' 
+                  ? assignment.class_id._id 
+                  : assignment.class_id;
+                return assignmentClassId === selectedClass;
+              }) : null;
+              
+              const courseLimit = classAssignment?.course_limit || subject.course_limit || 0;
+              const teacherName = classAssignment?.user_id?.name || 'Not Assigned';
+              const isAssigned = !!classAssignment;
+              
+              return (
+                <div key={subject._id} className="subject-card-large">
+                  {/* Subject Name - Large and Prominent */}
+                  <div className="card-large-header">
+                    <h2 className="card-large-title">{subject.subject_name}</h2>
                   </div>
                   
-                  {/* Course Limit Validation */}
-                  <div className="course-limit-validation">
-                    <div className="validation-header">
-                      <span className="validation-icon">🔍</span>
-                      <span>Course Limit Analysis</span>
-                    </div>
-                    <div className="validation-content">
-                      {(() => {
-                        const termClasses = classes.filter(classItem => {
-                          const classTermId = typeof classItem.term_id === 'object' 
-                            ? classItem.term_id._id 
-                            : classItem.term_id;
-                          return classTermId === (subject.term_id?._id || subject.term_id);
-                        });
-                        
-                        const totalPeriods = termClasses.reduce((total, classItem) => {
-                          const assignment = subject.assignments?.find(assignment => {
-                            const assignmentClassId = typeof assignment.class_id === 'object' 
-                              ? assignment.class_id._id 
-                              : assignment.class_id;
-                            return assignmentClassId === classItem._id;
-                          });
-                          return total + (assignment?.course_limit || subject.course_limit || 0);
-                        }, 0);
-                        
-                        const assignedClasses = termClasses.filter(classItem => {
-                          return subject.assignments?.some(assignment => {
-                            const assignmentClassId = typeof assignment.class_id === 'object' 
-                              ? assignment.class_id._id 
-                              : assignment.class_id;
-                            return assignmentClassId === classItem._id;
-                          });
-                        });
-                        
-                        return (
-                          <div className="validation-stats">
-                            <div className="stat-item">
-                              <span className="stat-label">Total Classes:</span>
-                              <span className="stat-value">{termClasses.length}</span>
-                            </div>
-                            <div className="stat-item">
-                              <span className="stat-label">Assigned Classes:</span>
-                              <span className="stat-value">{assignedClasses.length}</span>
-                            </div>
-                            <div className="stat-item">
-                              <span className="stat-label">Total Periods:</span>
-                              <span className="stat-value">{totalPeriods}</span>
-                            </div>
-                            <div className="stat-item">
-                              <span className="stat-label">Status:</span>
-                              <span className={`stat-value ${assignedClasses.length > 0 ? 'success' : 'warning'}`}>
-                                {assignedClasses.length > 0 ? 'Ready for Timetable' : 'Needs Assignment'}
-                              </span>
-                            </div>
+                  {/* Class-Specific Information */}
+                  {selectedClass ? (
+                    <div className="card-large-content">
+                      <div className="class-info-large">
+                        <div className="info-row">
+                          <span className="info-label">Class:</span>
+                          <span className="info-value">{classes.find(c => c._id === selectedClass)?.class_name || 'Unknown'}</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Course Limit:</span>
+                          <span className="info-value highlight">{courseLimit} periods</span>
+                        </div>
+                        <div className="info-row">
+                          <span className="info-label">Assigned:</span>
+                          <span className={`info-value ${isAssigned ? 'success' : 'warning'}`}>
+                            {isAssigned ? '✅ Yes' : '❌ No'}
+                          </span>
+                        </div>
+                        {isAssigned && (
+                          <div className="info-row">
+                            <span className="info-label">Teacher:</span>
+                            <span className="info-value">{teacherName}</span>
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="progress-section">
+                        <div className="progress-label">
+                          <span>Course Limit Status</span>
+                          <span className="progress-value">{courseLimit} / {courseLimit} periods</span>
+                        </div>
+                        <div className="progress-bar">
+                          <div className="progress-fill" style={{ width: '100%' }}></div>
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="card-large-content">
+                      <div className="no-class-selected">
+                        <p>Select a class to view course limits</p>
+                        <div className="default-info">
+                          <span>Default Course Limit: {subject.course_limit || 0} periods</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Actions */}
+                  <div className="card-large-actions">
+                    <button 
+                      className="btn-large btn-edit-large"
+                      onClick={() => handleEdit(subject)}
+                    >
+                      ✏️ Edit
+                    </button>
+                    <button 
+                      className="btn-large btn-delete-large"
+                      onClick={() => handleDelete(subject._id)}
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                 </div>
-                
-                {/* Actions */}
-                <div className="subject-actions">
-                  <button 
-                    className="action-btn edit-btn"
-                    onClick={() => handleEdit(subject)}
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button 
-                    className="action-btn delete-btn"
-                    onClick={() => handleDelete(subject._id)}
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -877,87 +680,18 @@ const AdminSubjects = () => {
                 </div>
                 
                 <div className="form-group">
-                  <label htmlFor="term_id">Assign to Term</label>
-                  <select
+                  <label htmlFor="term_id">Term Assignment</label>
+                  <input
+                    type="text"
                     id="term_id"
-                    name="term_id"
-                    value={formData.term_id}
-                    onChange={handleInputChange}
-                    disabled={terms.length === 0}
-                  >
-                    <option value="">
-                      {terms.length === 0 ? 'Loading terms...' : 'Select a term (required)'}
-                    </option>
-                    {terms.map(term => (
-                      <option key={term._id} value={term._id}>
-                        {getTermName(term)}
-                      </option>
-                    ))}
-                  </select>
+                    value="Third Term (Auto-assigned)"
+                    disabled
+                    className="disabled-input"
+                  />
                   <small className="form-help">
-                    Assign this subject to a specific term
+                    All subjects are automatically assigned to the Third Term
                   </small>
                 </div>
-
-                {/* Class-Specific Course Limits */}
-                {formData.term_id && (
-                  <div className="form-group">
-                    <label>Class-Specific Course Limits</label>
-                    <div className="class-limits-section">
-                      <div className="class-limits-header">
-                        <span>Configure course limits for each class in this term</span>
-                        <small className="form-help">Leave blank to use default limit</small>
-                      </div>
-                      <div className="class-limits-grid">
-                        {(() => {
-                          const termClasses = classes.filter(classItem => {
-                            const classTermId = typeof classItem.term_id === 'object' 
-                              ? classItem.term_id._id 
-                              : classItem.term_id;
-                            return classTermId === formData.term_id;
-                          });
-                          
-                          return termClasses.map(classItem => (
-                            <div key={classItem._id} className="class-limit-input">
-                              <label htmlFor={`class_limit_${classItem._id}`}>
-                                {classItem.class_name} (Grade {classItem.grade})
-                              </label>
-                              <input
-                                type="number"
-                                id={`class_limit_${classItem._id}`}
-                                name={`class_limit_${classItem._id}`}
-                                value={formData.classLimits?.[classItem._id] || ''}
-                                onChange={(e) => {
-                                  const newClassLimits = {
-                                    ...formData.classLimits,
-                                    [classItem._id]: e.target.value
-                                  };
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    classLimits: newClassLimits
-                                  }));
-                                }}
-                                min="0"
-                                max="40"
-                                placeholder={`Default: ${formData.course_limit}`}
-                              />
-                            </div>
-                          ));
-                        })()}
-                      </div>
-                      {classes.filter(classItem => {
-                        const classTermId = typeof classItem.term_id === 'object' 
-                          ? classItem.term_id._id 
-                          : classItem.term_id;
-                        return classTermId === formData.term_id;
-                      }).length === 0 && (
-                        <div className="no-classes-message">
-                          No classes assigned to this term yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
                 
                 <div className="modal-actions">
                   <button type="button" className="btn btn-outline" onClick={handleCloseModal}>

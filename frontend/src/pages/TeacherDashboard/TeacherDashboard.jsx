@@ -155,76 +155,38 @@ const TeacherDashboard = () => {
             <h3>Request Leave</h3>
             <p>Submit leave application</p>
           </button>
-          
-          <button className="teacherdash-quick-action-card" onClick={go('/teacher/messages')}>
-            <div className="teacherdash-action-icon">💬</div>
-            <h3>Messages</h3>
-            <p>Chat with students and parents</p>
-          </button>
         </div>
       </section>
 
-      {/* 12 Cards Grid Section */}
+      {/* Teacher Tools Section */}
       <section className="teacherdash-cards-grid-section">
         <div className="teacherdash-cards-grid">
-          <div className="teacherdash-card teacherdash-card-1">
-            <h3>📅 Today's Schedule</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/timetable')}>View Full Timetable</button>
+          <div className="teacherdash-card">
+            <div className="teacherdash-card-icon">🏫</div>
+            <h3>My Classes</h3>
+            <p>All grades and sections assigned to you.</p>
+            <button className="teacherdash-view-all-btn" onClick={go('/teacher/classes')}>View Classes</button>
           </div>
-          
-          <div className="teacherdash-card teacherdash-card-2">
-            <h3>🏫 My Classes</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/classes')}>View All Classes</button>
+
+          <div className="teacherdash-card">
+            <div className="teacherdash-card-icon">🏖️</div>
+            <h3>Leave Management</h3>
+            <p>Request time off and track approvals.</p>
+            <button className="teacherdash-view-all-btn" onClick={go('/teacher/request-leave')}>Manage Leave</button>
           </div>
-          
-          <div className="teacherdash-card teacherdash-card-3">
-            <h3>📚 My Subjects</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/subjects')}>View Subjects</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-4">
-            <h3>📊 Course Progress</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/course-progress')}>View Progress</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-5">
-            <h3>✅ Attendance Records</h3>
+
+          <div className="teacherdash-card">
+            <div className="teacherdash-card-icon">✅</div>
+            <h3>Attendance Records</h3>
+            <p>Review daily and period-level attendance.</p>
             <button className="teacherdash-view-all-btn" onClick={go('/teacher/attendance-reports')}>View Reports</button>
           </div>
-          
-          <div className="teacherdash-card teacherdash-card-6">
-            <h3>📝 Exam Schedule</h3>
+
+          <div className="teacherdash-card">
+            <div className="teacherdash-card-icon">📝</div>
+            <h3>Exam Schedule</h3>
+            <p>Stay ahead of upcoming assessments.</p>
             <button className="teacherdash-view-all-btn" onClick={go('/teacher/exam-schedule')}>View Exams</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-7">
-            <h3>📊 Enter Marks</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/enter-marks')}>Record Marks</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-8">
-            <h3>🏖️ Leave Management</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/request-leave')}>Manage Leaves</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-9">
-            <h3>🔄 Replacements</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/replacements')}>View Duties</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-10">
-            <h3>💬 Messages</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/messages')}>Open Chat</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-11">
-            <h3>🔔 Notifications</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/notifications')}>View All</button>
-          </div>
-          
-          <div className="teacherdash-card teacherdash-card-12">
-            <h3>🤝 Parent Meetings</h3>
-            <button className="teacherdash-view-all-btn" onClick={go('/teacher/meetings')}>Schedule Meeting</button>
           </div>
         </div>
       </section>

@@ -231,8 +231,10 @@ body {
 
 .teacherdash-quick-actions-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, minmax(200px, 1fr));
   gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 .teacherdash-quick-action-card {
@@ -279,10 +281,8 @@ body {
 
 .teacherdash-cards-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 28px;
-  height: 1500px;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 1.75rem;
 }
 
 .teacherdash-card {
@@ -299,7 +299,7 @@ body {
   box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
-  min-height: 100px;
+  min-height: 180px;
 }
 
 .teacherdash-card::before {
@@ -353,19 +353,10 @@ body {
   box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
 
-/* Specific card positions */
-.teacherdash-card-1 { grid-row: 1 / 2; grid-column: 1 / 2; }
-.teacherdash-card-2 { grid-row: 1 / 4; grid-column: 2 / 3; }
-.teacherdash-card-3 { grid-row: 1 / 2; grid-column: 3 / 4; }
-.teacherdash-card-4 { grid-row: 1 / 2; grid-column: 4 / 5; }
-.teacherdash-card-5 { grid-row: 2 / 6; grid-column: 1 / 2; }
-.teacherdash-card-6 { grid-row: 4 / 6; grid-column: 2 / 3; }
-.teacherdash-card-7 { grid-row: 2 / 6; grid-column: 3 / 4; }
-.teacherdash-card-8 { grid-row: 2 / 3; grid-column: 4 / 5; }
-.teacherdash-card-9 { grid-row: 6 / 7; grid-column: 1 / 2; }
-.teacherdash-card-10 { grid-row: 6 / 7; grid-column: 2 / 3; }
-.teacherdash-card-11 { grid-row: 6 / 7; grid-column: 3 / 4; }
-.teacherdash-card-12 { grid-row: 3 / 7; grid-column: 4 / 5; }
+.teacherdash-card-icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
 
 /* Responsive Design */
 @media (max-width: 1200px) {
@@ -375,57 +366,11 @@ body {
   }
   
   .teacherdash-quick-actions-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
   
   .teacherdash-cards-grid {
-    grid-template-columns: repeat(3, 1fr);
-    height: 1400px;
-  }
-  
-  .teacherdash-card-4 {
-    grid-row: 2 / 3;
-    grid-column: 1 / 2;
-  }
-  
-  .teacherdash-card-5 {
-    grid-row: 2 / 5;
-    grid-column: 2 / 3;
-  }
-  
-  .teacherdash-card-6 {
-    grid-row: 4 / 5;
-    grid-column: 1 / 2;
-  }
-  
-  .teacherdash-card-7 {
-    grid-row: 2 / 5;
-    grid-column: 3 / 4;
-  }
-  
-  .teacherdash-card-8 {
-    grid-row: 1 / 2;
-    grid-column: 3 / 4;
-  }
-  
-  .teacherdash-card-9 {
-    grid-row: 5 / 6;
-    grid-column: 1 / 2;
-  }
-  
-  .teacherdash-card-10 {
-    grid-row: 5 / 6;
-    grid-column: 2 / 3;
-  }
-  
-  .teacherdash-card-11 {
-    grid-row: 5 / 6;
-    grid-column: 3 / 4;
-  }
-  
-  .teacherdash-card-12 {
-    grid-row: 3 / 6;
-    grid-column: 3 / 4;
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
   }
 }
 
@@ -440,14 +385,13 @@ body {
   }
   
   .teacherdash-quick-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
     gap: 1rem;
   }
   
   .teacherdash-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-    height: auto;
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
   .teacherdash-card {
@@ -465,19 +409,11 @@ body {
     padding: 0.5rem 0.8rem;
     font-size: 0.7rem;
   }
-  
-  .teacherdash-card-1, .teacherdash-card-2, .teacherdash-card-3, .teacherdash-card-4, 
-  .teacherdash-card-5, .teacherdash-card-6, .teacherdash-card-7, .teacherdash-card-8, 
-  .teacherdash-card-9, .teacherdash-card-10, .teacherdash-card-11, .teacherdash-card-12 {
-    grid-row: auto;
-    grid-column: auto;
-    height: 160px;
-  }
 }
 
 @media (max-width: 480px) {
   .teacherdash-quick-actions-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 1rem;
   }
   
@@ -487,36 +423,23 @@ body {
   
   .teacherdash-cards-grid {
     grid-template-columns: 1fr;
-    height: auto;
-    gap: 6px;
+    gap: 0.75rem;
   }
   
   .teacherdash-card {
     height: 160px;
     padding: 1rem;
-    min-height: 120px;
+    min-height: 130px;
   }
   
   .teacherdash-card h3 {
-    font-size: 0.9rem;
-    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+    margin: 0 0 0.4rem 0;
   }
   
   .teacherdash-view-all-btn {
-    padding: 0.4rem 0.7rem;
-    font-size: 0.65rem;
-  }
-  
-  .teacherdash-card-1, .teacherdash-card-2, .teacherdash-card-3, .teacherdash-card-4, 
-  .teacherdash-card-5, .teacherdash-card-6, .teacherdash-card-7, .teacherdash-card-8, 
-  .teacherdash-card-9, .teacherdash-card-10, .teacherdash-card-11, .teacherdash-card-12 {
-    grid-row: auto;
-    grid-column: auto;
-    height: 140px;
-  }
-  
-  .teacherdash-quick-actions-grid {
-    grid-template-columns: 1fr;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.7rem;
   }
   
   .teacherdash-stat-card {

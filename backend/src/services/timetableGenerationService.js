@@ -213,7 +213,8 @@ async function generateOptimalDistribution(subjectDistribution, classId, termId,
               subject_id: subject.subjectId,
               teacher_id: subject.teacherId,
               day_of_week: day,
-              is_double_period: true
+              is_double_period: true,
+              term_id: termId
             });
             
             generatedClassTimetables.push({
@@ -222,7 +223,8 @@ async function generateOptimalDistribution(subjectDistribution, classId, termId,
               subject_id: subject.subjectId,
               teacher_id: subject.teacherId,
               day_of_week: day,
-              is_double_period: true
+              is_double_period: true,
+              term_id: termId
             });
             
             // Mark teacher as busy
@@ -252,7 +254,8 @@ async function generateOptimalDistribution(subjectDistribution, classId, termId,
             subject_id: subject.subjectId,
             teacher_id: subject.teacherId,
             day_of_week: day,
-            is_double_period: false
+            is_double_period: false,
+            term_id: termId
           });
           
           // Mark teacher as busy
@@ -675,8 +678,85 @@ export const getWeeklyTimetableSummary = async (classId, termId) => {
   }
 };
 
+/**
+ * Generate timetables for all classes in a term
+ */
+export const generateTimetablesForAllClasses = async (termId) => {
+  try {
+    console.log('🚀 Starting timetable generation for all classes in term:', termId);
+    
+    // Get all classes for this term
+    const classes = await Class.find({ term_id: termId });
+    
+    if (classes.length === 0) {
+      throw new Error('No classes found for this term');
+    }
+    
+    console.log(`📚 Found ${classes.length} classes to process`);
+    
+    const results = {
+      success: [],
+      failed: [],
+      total: classes.length
+    };
+    
+    // Generate timetable for each class
+    for (const classData of classes) {
+      try {
+        console.log(`\n📝 Generating timetable for class: ${classData.class_name}`);
+        
+        // Validate requirements
+        const validation = await validateTimetableRequirements(termId, classData._id);
+        if (!validation.valid) {
+          console.log(`⚠️ Validation failed for ${classData.class_name}:`, validation.errors);
+          results.failed.push({
+            class_id: classData._id,
+            class_name: classData.class_name,
+            errors: validation.errors
+          });
+          continue;
+        }
+        
+        // Generate timetable
+        const result = await generateAITimetable(termId, classData._id);
+        
+        results.success.push({
+          class_id: classData._id,
+          class_name: classData.class_name,
+          stats: result.stats
+        });
+        
+        console.log(`✅ Successfully generated timetable for ${classData.class_name}`);
+        
+      } catch (error) {
+        console.error(`❌ Error generating timetable for ${classData.class_name}:`, error.message);
+        results.failed.push({
+          class_id: classData._id,
+          class_name: classData.class_name,
+          error: error.message
+        });
+      }
+    }
+    
+    console.log(`\n🎉 Timetable generation completed!`);
+    console.log(`✅ Success: ${results.success.length}`);
+    console.log(`❌ Failed: ${results.failed.length}`);
+    
+    return {
+      success: true,
+      message: `Generated timetables for ${results.success.length} out of ${results.total} classes`,
+      results: results
+    };
+    
+  } catch (error) {
+    console.error('❌ Error generating timetables for all classes:', error);
+    throw error;
+  }
+};
+
 export default {
   generateAITimetable,
+  generateTimetablesForAllClasses,
   checkTimetableConflicts,
   validateTimetableRequirements,
   getClassTimetable,

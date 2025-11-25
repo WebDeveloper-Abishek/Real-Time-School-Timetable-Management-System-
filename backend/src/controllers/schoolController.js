@@ -2,20 +2,69 @@ import Subject from "../models/Subject.js";
 import Class from "../models/Class.js";
 import TeacherSubjectAssignment from "../models/TeacherSubjectAssignment.js";
 
+import Term from "../models/Term.js";
+
 export const createSubject = async (req, res) => {
   try {
-    const { subject_name, code, description } = req.body;
+    const { subject_name, code, description, term_id } = req.body;
     if (!subject_name) return res.status(400).json({ message: "subject_name required" });
-    const doc = await Subject.create({ subject_name, code, description });
+    
+    // Auto-assign to third term if not provided
+    let finalTermId = term_id;
+    if (!finalTermId) {
+      const thirdTerm = await Term.findOne({ term_number: 3, is_active: true })
+        .sort({ createdAt: -1 });
+      if (thirdTerm) {
+        finalTermId = thirdTerm._id;
+      }
+    }
+    
+    const doc = await Subject.create({ 
+      subject_name, 
+      code, 
+      description,
+      term_id: finalTermId
+    });
     return res.status(201).json(doc);
-  } catch (e) { return res.status(500).json({ message: "Server error" }); }
+  } catch (e) { 
+    console.error('Error creating subject:', e);
+    return res.status(500).json({ message: "Server error" }); 
+  }
 };
 
 export const listSubjects = async (_req, res) => {
   try {
-    const list = await Subject.find({ is_active: true }).sort({ subject_name: 1 });
-    return res.json(list);
-  } catch (e) { return res.status(500).json({ message: "Server error" }); }
+    const list = await Subject.find({ is_active: true })
+      .populate('term_id', 'term_number academic_year_id')
+      .populate({
+        path: 'term_id',
+        populate: {
+          path: 'academic_year_id',
+          select: 'year_label'
+        }
+      })
+      .sort({ subject_name: 1 });
+    
+    // Get assignments for each subject
+    const subjectsWithAssignments = await Promise.all(
+      list.map(async (subject) => {
+        const assignments = await TeacherSubjectAssignment.find({ subject_id: subject._id })
+          .populate('user_id', 'name role')
+          .populate('class_id', 'class_name grade section term_id')
+          .populate('subject_id', 'subject_name');
+        
+        return {
+          ...subject.toObject(),
+          assignments: assignments
+        };
+      })
+    );
+    
+    return res.json(subjectsWithAssignments);
+  } catch (e) { 
+    console.error('Error listing subjects:', e);
+    return res.status(500).json({ message: "Server error" }); 
+  }
 };
 
 export const createClass = async (req, res) => {

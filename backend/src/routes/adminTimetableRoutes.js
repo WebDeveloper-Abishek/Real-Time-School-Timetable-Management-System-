@@ -3,6 +3,7 @@ import {
   createSlot,
   listClassDay,
   generateTimetable,
+  generateAllClassTimetables,
   checkConflicts,
   requestReplacement,
   suggestReplacement,
@@ -26,6 +27,7 @@ router.get('/slots', listClassDay);
 
 // AI Timetable Generation
 router.post('/timetable/generate', generateTimetable);
+router.post('/timetable/generate-all', generateAllClassTimetables);
 router.get('/timetable/conflicts', checkConflicts);
 router.get('/teacher/timetable', getTeacherTimetable);
 router.get('/student/timetable', getStudentTimetable);

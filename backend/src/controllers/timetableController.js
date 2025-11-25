@@ -5,6 +5,7 @@ import ReplacementAssignment from "../models/ReplacementAssignment.js";
 import TeacherSubjectAssignment from "../models/TeacherSubjectAssignment.js";
 import {
   generateAITimetable,
+  generateTimetablesForAllClasses,
   checkTimetableConflicts,
   validateTimetableRequirements,
   getClassTimetable
@@ -223,6 +224,27 @@ export const getStudentTimetable = async (req, res) => {
   } catch (e) {
     console.error('Error in getStudentTimetable:', e);
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Generate timetables for all classes in a term
+export const generateAllClassTimetables = async (req, res) => {
+  try {
+    const { term_id } = req.body;
+    
+    if (!term_id) {
+      return res.status(400).json({ message: "Term ID is required" });
+    }
+
+    const result = await generateTimetablesForAllClasses(term_id);
+    
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Generate all timetables error:', error);
+    return res.status(500).json({
+      message: "Error generating timetables",
+      error: error.message
+    });
   }
 };
 

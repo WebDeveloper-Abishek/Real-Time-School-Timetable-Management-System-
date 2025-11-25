@@ -30,6 +30,7 @@ import AdminExams from './pages/AdminDashboard/Exams/AdminExams';
 import TeacherChat from './pages/TeacherDashboard/Chat/TeacherChat';
 import StudentChat from './pages/StudentDashboard/Chat/StudentChat';
 import TeacherReplacements from './pages/TeacherDashboard/Replacements/TeacherReplacements';
+import TeacherLeaves from './pages/TeacherDashboard/Leaves/TeacherLeaves';
 
 // Timetable Pages
 import StudentTimetable from './pages/StudentDashboard/Timetable/StudentTimetable';
@@ -215,6 +216,14 @@ const AppWrapper = () => {
           element={
             <ProtectedRoute allowedRoles={['Teacher']}>
               <TeacherReplacements />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/teacher/leaves" 
+          element={
+            <ProtectedRoute allowedRoles={['Teacher']}>
+              <TeacherLeaves />
             </ProtectedRoute>
           } 
         />

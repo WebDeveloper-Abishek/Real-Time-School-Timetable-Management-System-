@@ -65,84 +65,158 @@ export const processLeaveRequest = async (leaveId) => {
 
 /**
  * Get all periods affected by a leave
+ * Handles multi-day leaves and calculates affected days based on start_date and end_date
  */
 async function getAffectedPeriods(leave) {
-  const { teacher_id, class_id, leave_date, leave_type } = leave;
+  const { teacher_id, start_date, end_date, leave_type, half_day_type } = leave;
   
-  // Get all periods for this teacher on this date
+  // Get all periods for this teacher across all classes
   const teacherPeriods = await ClassTimetable.find({
-    teacher_id: teacher_id,
-    class_id: class_id
-  }).populate('slot_id');
+    teacher_id: teacher_id
+  })
+    .populate('slot_id')
+    .populate('subject_id', 'subject_name')
+    .populate('class_id', 'class_name grade section');
 
-  // Filter by date and leave type
+  if (teacherPeriods.length === 0) {
+    console.log(`⚠️ No periods found for teacher ${teacher_id}`);
+    return [];
+  }
+
+  // Calculate affected days (excluding weekends)
+  const affectedDays = getAffectedDays(start_date, end_date);
+  console.log(`📅 Affected days: ${affectedDays.map(d => d.toDateString()).join(', ')}`);
+
+  // Map day names to dates
+  const dayNameMap = {
+    'Monday': 1,
+    'Tuesday': 2,
+    'Wednesday': 3,
+    'Thursday': 4,
+    'Friday': 5
+  };
+
+  // Filter periods by affected days and leave type
   const affectedPeriods = teacherPeriods.filter(period => {
-    const periodDate = new Date(period.createdAt);
-    const leaveDate = new Date(leave_date);
-    
-    // Check if it's the same date
-    if (periodDate.toDateString() !== leaveDate.toDateString()) {
-      return false;
-    }
+    // Get day of week number (0 = Sunday, 1 = Monday, etc.)
+    const periodDayNumber = dayNameMap[period.day_of_week];
+    if (!periodDayNumber) return false;
 
-    // Check leave type (full day, first half, second half)
-    if (leave_type === 'Full Day') {
+    // Check if this period's day falls on any affected date
+    const isAffectedDay = affectedDays.some(affectedDate => {
+      const dayOfWeek = affectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      // Convert to Monday=1 format
+      const adjustedDay = dayOfWeek === 0 ? 7 : dayOfWeek;
+      return adjustedDay === periodDayNumber;
+    });
+
+    if (!isAffectedDay) return false;
+
+    // Check leave type (Full, Half with First/Second)
+    if (leave_type === 'Full') {
       return true;
-    } else if (leave_type === 'First Half') {
-      return period.slot_id.slot_number <= 4; // First 4 periods
-    } else if (leave_type === 'Second Half') {
-      return period.slot_id.slot_number > 4; // Last 4 periods
+    } else if (leave_type === 'Half') {
+      if (half_day_type === 'First') {
+        // First half: periods 1-4
+        return period.slot_id.slot_number <= 4;
+      } else if (half_day_type === 'Second') {
+        // Second half: periods 5-8
+        return period.slot_id.slot_number > 4 && period.slot_id.slot_number <= 8;
+      }
     }
     
     return false;
   });
 
+  console.log(`📚 Found ${affectedPeriods.length} affected periods`);
   return affectedPeriods;
 }
 
 /**
+ * Get all affected days between start_date and end_date (excluding weekends)
+ */
+function getAffectedDays(startDate, endDate) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const affectedDays = [];
+
+  // Set time to start of day
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+
+  const currentDate = new Date(start);
+  
+  while (currentDate <= end) {
+    const dayOfWeek = currentDate.getDay();
+    // Exclude weekends (0 = Sunday, 6 = Saturday)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      affectedDays.push(new Date(currentDate));
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return affectedDays;
+}
+
+/**
  * Find replacement teacher for a specific period
+ * Priority: 1) Same class teachers with free periods, 2) Subject teachers with free periods, 3) Any free teacher
  */
 async function findReplacementTeacher(period, leave) {
-  const { class_id, subject_id, slot_id, day_of_week } = period;
+  const classId = typeof period.class_id === 'object' ? period.class_id._id : period.class_id;
+  const subjectId = typeof period.subject_id === 'object' ? period.subject_id._id : period.subject_id;
+  const slotId = typeof period.slot_id === 'object' ? period.slot_id._id : period.slot_id;
+  const dayOfWeek = period.day_of_week;
+  const originalTeacherId = leave.teacher_id._id || leave.teacher_id;
   
-  console.log(`🔍 Finding replacement for ${subject_id.subject_name} in ${class_id.class_name}`);
+  const className = period.class_id?.class_name || 'Unknown';
+  const subjectName = period.subject_id?.subject_name || 'Unknown';
+  
+  // Check if this is a double period
+  const isDoublePeriod = period.is_double_period || false;
+  
+  console.log(`🔍 Finding replacement for ${subjectName} in ${className} on ${dayOfWeek}, slot ${period.slot_id?.slot_number || 'N/A'}${isDoublePeriod ? ' (Double Period)' : ''}`);
 
-  // Priority 1: Teachers already teaching this class on this day
-  const sameClassTeachers = await findTeachersTeachingSameClass(class_id, day_of_week, slot_id._id);
+  // Priority 1: Teachers already teaching this class on this day (different slot) with free periods
+  const sameClassTeachers = await findTeachersTeachingSameClass(classId, dayOfWeek, slotId, originalTeacherId, isDoublePeriod);
   if (sameClassTeachers.length > 0) {
-    const bestTeacher = await selectBestReplacement(sameClassTeachers, subject_id);
+    const bestTeacher = await selectBestReplacement(sameClassTeachers, subjectId, classId);
     if (bestTeacher) {
       console.log(`✅ Found same-class teacher: ${bestTeacher.name}`);
       return {
         teacher: bestTeacher,
+        period: period,
         priority: 1,
-        reason: 'Already teaching this class'
+        reason: 'Already teaching this class on this day'
       };
     }
   }
 
-  // Priority 2: Teachers free during this slot who teach this subject
-  const subjectTeachers = await findTeachersForSubject(subject_id, day_of_week, slot_id._id);
+  // Priority 2: Teachers free during this slot who teach this subject for this class
+  const subjectTeachers = await findTeachersForSubject(subjectId, classId, dayOfWeek, slotId, originalTeacherId, isDoublePeriod);
   if (subjectTeachers.length > 0) {
-    const bestTeacher = await selectBestReplacement(subjectTeachers, subject_id);
+    const bestTeacher = await selectBestReplacement(subjectTeachers, subjectId, classId);
     if (bestTeacher) {
       console.log(`✅ Found subject teacher: ${bestTeacher.name}`);
       return {
         teacher: bestTeacher,
+        period: period,
         priority: 2,
-        reason: 'Teaches this subject and is free'
+        reason: 'Teaches this subject for this class and is free'
       };
     }
   }
 
   // Priority 3: Any teacher free during this slot
-  const freeTeachers = await findFreeTeachers(day_of_week, slot_id._id);
+  const freeTeachers = await findFreeTeachers(dayOfWeek, slotId, originalTeacherId, isDoublePeriod);
   if (freeTeachers.length > 0) {
-    const bestTeacher = freeTeachers[0]; // Take first available
+    // Sort by course limit for this subject if available
+    const sortedTeachers = await sortTeachersByCourseLimit(freeTeachers, subjectId, classId);
+    const bestTeacher = sortedTeachers[0];
     console.log(`✅ Found free teacher: ${bestTeacher.name}`);
     return {
       teacher: bestTeacher,
+      period: period,
       priority: 3,
       reason: 'Available during this slot'
     };
@@ -153,35 +227,48 @@ async function findReplacementTeacher(period, leave) {
 }
 
 /**
- * Find teachers already teaching the same class
+ * Find teachers already teaching the same class on this day (different slots) who are free during the required slot
  */
-async function findTeachersTeachingSameClass(classId, dayOfWeek, slotId) {
-  const teachers = await ClassTimetable.find({
+async function findTeachersTeachingSameClass(classId, dayOfWeek, slotId, excludeTeacherId, isDoublePeriod = false) {
+  // Get all teachers teaching this class on this day (any slot)
+  const classTeachers = await ClassTimetable.find({
     class_id: classId,
     day_of_week: dayOfWeek,
-    slot_id: slotId
-  }).populate('teacher_id', 'name email role');
+    teacher_id: { $ne: excludeTeacherId }
+  })
+    .populate('teacher_id', 'name email role')
+    .distinct('teacher_id');
 
-  return teachers.map(ct => ct.teacher_id);
+  // Filter to only those who are free during the required slot
+  const availableTeachers = [];
+  for (const teacher of classTeachers) {
+    const isFree = await isTeacherFree(teacher._id, dayOfWeek, slotId, isDoublePeriod);
+    if (isFree) {
+      availableTeachers.push(teacher);
+    }
+  }
+
+  return availableTeachers;
 }
 
 /**
- * Find teachers who teach this subject and are free
+ * Find teachers who teach this subject for this class and are free during the slot
  */
-async function findTeachersForSubject(subjectId, dayOfWeek, slotId) {
-  // Get teachers assigned to this subject
+async function findTeachersForSubject(subjectId, classId, dayOfWeek, slotId, excludeTeacherId, isDoublePeriod = false) {
+  // Get teachers assigned to this subject for this class
   const subjectAssignments = await TeacherSubjectAssignment.find({
-    subject_id: subjectId
+    subject_id: subjectId,
+    class_id: classId,
+    user_id: { $ne: excludeTeacherId }
   }).populate('user_id', 'name email role');
-
-  const teacherIds = subjectAssignments.map(sa => sa.user_id._id);
 
   // Check which ones are free during this slot
   const freeTeachers = [];
-  for (const teacherId of teacherIds) {
-    const isFree = await isTeacherFree(teacherId, dayOfWeek, slotId);
+  for (const assignment of subjectAssignments) {
+    const teacherId = assignment.user_id._id;
+    const isFree = await isTeacherFree(teacherId, dayOfWeek, slotId, isDoublePeriod);
     if (isFree) {
-      freeTeachers.push(subjectAssignments.find(sa => sa.user_id._id.toString() === teacherId.toString()).user_id);
+      freeTeachers.push(assignment.user_id);
     }
   }
 
@@ -189,15 +276,18 @@ async function findTeachersForSubject(subjectId, dayOfWeek, slotId) {
 }
 
 /**
- * Find any teachers free during this slot
+ * Find any teachers free during this slot (excluding the absent teacher)
  */
-async function findFreeTeachers(dayOfWeek, slotId) {
-  // Get all teachers
-  const teachers = await User.find({ role: 'Teacher' });
+async function findFreeTeachers(dayOfWeek, slotId, excludeTeacherId, isDoublePeriod = false) {
+  // Get all teachers except the absent one
+  const teachers = await User.find({ 
+    role: 'Teacher',
+    _id: { $ne: excludeTeacherId }
+  });
 
   const freeTeachers = [];
   for (const teacher of teachers) {
-    const isFree = await isTeacherFree(teacher._id, dayOfWeek, slotId);
+    const isFree = await isTeacherFree(teacher._id, dayOfWeek, slotId, isDoublePeriod);
     if (isFree) {
       freeTeachers.push(teacher);
     }
@@ -207,33 +297,88 @@ async function findFreeTeachers(dayOfWeek, slotId) {
 }
 
 /**
- * Check if teacher is free during specific slot
+ * Sort teachers by course limit for the subject/class (highest first)
  */
-async function isTeacherFree(teacherId, dayOfWeek, slotId) {
+async function sortTeachersByCourseLimit(teachers, subjectId, classId) {
+  const teachersWithLimits = await Promise.all(
+    teachers.map(async (teacher) => {
+      const assignment = await TeacherSubjectAssignment.findOne({
+        user_id: teacher._id,
+        subject_id: subjectId,
+        class_id: classId
+      });
+      return {
+        teacher,
+        courseLimit: assignment?.course_limit || 0
+      };
+    })
+  );
+
+  return teachersWithLimits
+    .sort((a, b) => b.courseLimit - a.courseLimit)
+    .map(item => item.teacher);
+}
+
+/**
+ * Check if teacher is free during specific slot
+ * Also checks for double period requirements
+ */
+async function isTeacherFree(teacherId, dayOfWeek, slotId, isDoublePeriod = false) {
+  // Check if teacher has an assignment in this slot
   const existingAssignment = await ClassTimetable.findOne({
     teacher_id: teacherId,
     day_of_week: dayOfWeek,
     slot_id: slotId
   });
 
-  return !existingAssignment;
+  if (existingAssignment) {
+    return false;
+  }
+
+  // If this is a double period, check if teacher is free for the next slot too
+  if (isDoublePeriod) {
+    const slot = await TimetableSlot.findById(slotId);
+    if (slot) {
+      // Find the next slot (slot_number + 1)
+      const nextSlot = await TimetableSlot.findOne({
+        slot_number: slot.slot_number + 1,
+        slot_type: 'Period'
+      });
+
+      if (nextSlot) {
+        const nextSlotAssignment = await ClassTimetable.findOne({
+          teacher_id: teacherId,
+          day_of_week: dayOfWeek,
+          slot_id: nextSlot._id
+        });
+
+        if (nextSlotAssignment) {
+          return false; // Teacher is busy in next slot
+        }
+      }
+    }
+  }
+
+  return true;
 }
 
 /**
- * Select best replacement teacher based on course limits
+ * Select best replacement teacher based on course limits for the subject/class
  */
-async function selectBestReplacement(teachers, subjectId) {
+async function selectBestReplacement(teachers, subjectId, classId) {
   let bestTeacher = null;
   let highestCourseLimit = -1;
 
   for (const teacher of teachers) {
     const assignment = await TeacherSubjectAssignment.findOne({
       user_id: teacher._id,
-      subject_id: subjectId
+      subject_id: subjectId,
+      class_id: classId
     });
 
-    if (assignment && assignment.course_limit > highestCourseLimit) {
-      highestCourseLimit = assignment.course_limit;
+    const courseLimit = assignment?.course_limit || 0;
+    if (courseLimit > highestCourseLimit) {
+      highestCourseLimit = courseLimit;
       bestTeacher = teacher;
     }
   }
@@ -245,29 +390,56 @@ async function selectBestReplacement(teachers, subjectId) {
  * Send replacement prompts to teachers
  */
 async function sendReplacementPrompts(replacements, leave) {
+  const teacherId = typeof leave.teacher_id === 'object' ? leave.teacher_id._id : leave.teacher_id;
+  const teacherName = leave.teacher_id?.name || 'Teacher';
+  
   for (const replacement of replacements) {
+    const period = replacement.period;
+    const classId = typeof period.class_id === 'object' ? period.class_id._id : period.class_id;
+    const subjectId = typeof period.subject_id === 'object' ? period.subject_id._id : period.subject_id;
+    const slotId = typeof period.slot_id === 'object' ? period.slot_id._id : period.slot_id;
+    const className = period.class_id?.class_name || 'Unknown';
+    const subjectName = period.subject_id?.subject_name || 'Unknown';
+    const slotNumber = period.slot_id?.slot_number || 'N/A';
+    
+    // Create replacement assignment record
+    const replacementAssignment = await ReplacementAssignment.create({
+      original_teacher_id: teacherId,
+      replacement_teacher_id: replacement.teacher._id,
+      class_id: classId,
+      subject_id: subjectId,
+      slot_id: slotId,
+      date: leave.start_date, // Use start date
+      accepted: false
+    });
+
     // Create notification for the teacher
     await Notification.create({
       user_id: replacement.teacher._id,
       type: 'replacement_request',
       title: 'Replacement Request',
-      message: `You are requested to replace ${leave.teacher_id.name} for ${leave.class_id.class_name} - ${replacement.period.subject_id.subject_name} on ${replacement.period.day_of_week}`,
+      message: `You are requested to replace ${teacherName} for ${className} - ${subjectName} on ${period.day_of_week} (Period ${slotNumber})`,
       data: {
         leave_id: leave._id,
-        period_id: replacement.period._id,
-        replacement_teacher_id: replacement.teacher._id,
+        replacement_assignment_id: replacementAssignment._id,
+        period_id: period._id,
+        class_id: classId,
+        subject_id: subjectId,
+        slot_id: slotId,
+        day_of_week: period.day_of_week,
         priority: replacement.priority,
         reason: replacement.reason
       },
       is_read: false
     });
 
-    console.log(`📤 Sent replacement prompt to ${replacement.teacher.name}`);
+    console.log(`📤 Sent replacement prompt to ${replacement.teacher.name} for ${className} - ${subjectName}`);
   }
 }
 
 /**
  * Teacher accepts replacement request
+ * Updates the ClassTimetable to reflect the replacement
  */
 export const acceptReplacement = async (notificationId, teacherId) => {
   try {
@@ -276,33 +448,100 @@ export const acceptReplacement = async (notificationId, teacherId) => {
       throw new Error('Notification not found or unauthorized');
     }
 
-    const { leave_id, period_id, replacement_teacher_id } = notification.data;
+    const { 
+      replacement_assignment_id, 
+      period_id, 
+      class_id, 
+      subject_id, 
+      slot_id, 
+      day_of_week 
+    } = notification.data;
 
-    // Create replacement assignment
-    await ReplacementAssignment.create({
-      leave_id: leave_id,
-      period_id: period_id,
-      replacement_teacher_id: replacement_teacher_id,
-      status: 'Accepted',
-      accepted_at: new Date()
-    });
+    if (!replacement_assignment_id) {
+      throw new Error('Replacement assignment ID not found in notification');
+    }
+
+    // Update replacement assignment
+    const replacementAssignment = await ReplacementAssignment.findById(replacement_assignment_id);
+    if (!replacementAssignment) {
+      throw new Error('Replacement assignment not found');
+    }
+
+    replacementAssignment.accepted = true;
+    await replacementAssignment.save();
+
+    // Update ClassTimetable to reflect the replacement teacher
+    const classTimetable = await ClassTimetable.findById(period_id)
+      .populate('slot_id');
+    
+    if (classTimetable) {
+      // Check if this is part of a double period
+      if (classTimetable.is_double_period) {
+        // Update all periods in the double period block for this subject/class/day
+        const updated = await ClassTimetable.updateMany(
+          {
+            class_id: classTimetable.class_id,
+            day_of_week: classTimetable.day_of_week,
+            subject_id: classTimetable.subject_id,
+            is_double_period: true
+          },
+          {
+            teacher_id: teacherId
+          }
+        );
+        console.log(`✅ Updated ${updated.modifiedCount} periods in double period block for replacement`);
+      } else {
+        // Single period replacement
+        classTimetable.teacher_id = teacherId;
+        await classTimetable.save();
+        console.log(`✅ Updated ClassTimetable for replacement`);
+      }
+    }
+
+    // Update TeacherTimetable
+    await TeacherTimetable.findOneAndUpdate(
+      {
+        teacher_id: teacherId,
+        slot_id: slot_id,
+        day_of_week: day_of_week
+      },
+      {
+        class_id: class_id,
+        subject_id: subject_id,
+        slot_id: slot_id,
+        day_of_week: day_of_week
+      },
+      { upsert: true, new: true }
+    );
 
     // Update notification
     notification.is_read = true;
     await notification.save();
 
     // Send confirmation to admin
-    await Notification.create({
-      user_id: 'admin', // Assuming admin has a specific ID
-      type: 'replacement_accepted',
-      title: 'Replacement Accepted',
-      message: `${notification.user_id.name} has accepted the replacement request`,
-      is_read: false
-    });
+    const admin = await User.findOne({ role: 'Admin' });
+    if (admin) {
+      await Notification.create({
+        user_id: admin._id,
+        type: 'replacement_accepted',
+        title: 'Replacement Accepted',
+        message: `${notification.user_id.name} has accepted the replacement request`,
+        data: {
+          replacement_assignment_id: replacement_assignment_id,
+          class_id: class_id,
+          subject_id: subject_id
+        },
+        is_read: false
+      });
+    }
 
     console.log(`✅ Replacement accepted by ${teacherId}`);
 
-    return { success: true, message: 'Replacement accepted successfully' };
+    return { 
+      success: true, 
+      message: 'Replacement accepted successfully',
+      replacement_assignment: replacementAssignment
+    };
 
   } catch (error) {
     console.error('❌ Error accepting replacement:', error);
@@ -312,41 +551,93 @@ export const acceptReplacement = async (notificationId, teacherId) => {
 
 /**
  * Teacher declines replacement request
+ * Finds next available replacement or notifies admin
  */
-export const declineReplacement = async (notificationId, teacherId) => {
+export const declineReplacement = async (notificationId, teacherId, reason) => {
   try {
     const notification = await Notification.findById(notificationId);
     if (!notification || notification.user_id.toString() !== teacherId.toString()) {
       throw new Error('Notification not found or unauthorized');
     }
 
+    const { 
+      replacement_assignment_id, 
+      leave_id, 
+      period_id 
+    } = notification.data;
+
+    // Update replacement assignment with decline reason
+    if (replacement_assignment_id) {
+      const replacementAssignment = await ReplacementAssignment.findById(replacement_assignment_id);
+      if (replacementAssignment) {
+        replacementAssignment.accepted = false;
+        replacementAssignment.reason_declined = reason || 'Declined by teacher';
+        await replacementAssignment.save();
+      }
+    }
+
     // Mark notification as read
     notification.is_read = true;
     await notification.save();
 
-    // Find next available teacher
-    const { leave_id, period_id } = notification.data;
-    const leave = await LeaveRecord.findById(leave_id);
-    const period = await ClassTimetable.findById(period_id);
+    // Get leave and period details
+    const leave = await LeaveRecord.findById(leave_id)
+      .populate('teacher_id', 'name');
+    
+    if (!leave) {
+      throw new Error('Leave record not found');
+    }
 
-    // Try to find another replacement
+    const period = await ClassTimetable.findById(period_id)
+      .populate('class_id', 'class_name')
+      .populate('subject_id', 'subject_name')
+      .populate('slot_id');
+
+    if (!period) {
+      throw new Error('Period not found');
+    }
+
+    // Try to find another replacement (excluding the one who declined)
     const nextReplacement = await findReplacementTeacher(period, leave);
-    if (nextReplacement) {
+    
+    if (nextReplacement && nextReplacement.teacher._id.toString() !== teacherId.toString()) {
+      // Found another replacement - send prompt
       await sendReplacementPrompts([nextReplacement], leave);
+      console.log(`📤 Sent replacement prompt to next available teacher: ${nextReplacement.teacher.name}`);
     } else {
       // No more replacements available - notify admin
-      await Notification.create({
-        user_id: 'admin',
-        type: 'replacement_failed',
-        title: 'Replacement Failed',
-        message: `No replacement found for ${leave.class_id.class_name} - ${period.subject_id.subject_name}`,
-        is_read: false
-      });
+      const admin = await User.findOne({ role: 'Admin' });
+      if (admin) {
+        const className = period.class_id?.class_name || 'Unknown';
+        const subjectName = period.subject_id?.subject_name || 'Unknown';
+        const slotNumber = period.slot_id?.slot_number || 'N/A';
+        
+        await Notification.create({
+          user_id: admin._id,
+          type: 'replacement_failed',
+          title: 'Replacement Needed - Manual Assignment Required',
+          message: `No replacement found for ${className} - ${subjectName} on ${period.day_of_week} (Period ${slotNumber}). Manual assignment required.`,
+          data: {
+            leave_id: leave_id,
+            period_id: period_id,
+            class_id: period.class_id?._id,
+            subject_id: period.subject_id?._id,
+            slot_id: period.slot_id?._id,
+            day_of_week: period.day_of_week
+          },
+          is_read: false
+        });
+        console.log(`📢 Notified admin: Manual replacement needed`);
+      }
     }
 
     console.log(`❌ Replacement declined by ${teacherId}`);
 
-    return { success: true, message: 'Replacement declined' };
+    return { 
+      success: true, 
+      message: 'Replacement declined',
+      nextReplacementFound: !!nextReplacement
+    };
 
   } catch (error) {
     console.error('❌ Error declining replacement:', error);

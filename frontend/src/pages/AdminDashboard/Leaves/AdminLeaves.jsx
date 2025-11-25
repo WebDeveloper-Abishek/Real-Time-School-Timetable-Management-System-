@@ -56,10 +56,17 @@ const AdminLeaves = () => {
     try {
       setAdminleavesLoading(true);
       const r = await fetch('/api/admin/leaves');
+      if (!r.ok) {
+        throw new Error('Failed to fetch leaves');
+      }
       const data = await r.json();
-      setAdminleavesList(data || []);
+      // Ensure we have an array and filter out any invalid entries
+      const validLeaves = Array.isArray(data) ? data.filter(leave => leave && leave._id) : [];
+      setAdminleavesList(validLeaves);
     } catch (error) {
-      adminleavesAddAlert('Error fetching leaves', 'error');
+      console.error('Error fetching leaves:', error);
+      adminleavesAddAlert('Error fetching leaves: ' + (error.message || 'Unknown error'), 'error');
+      setAdminleavesList([]);
     } finally {
       setAdminleavesLoading(false);
     }
@@ -69,6 +76,13 @@ const AdminLeaves = () => {
     adminleavesFetchTerms();
     adminleavesFetchTeachers();
     adminleavesFetchLeaves();
+    
+    // Refresh leaves every 30 seconds to catch new teacher submissions
+    const refreshInterval = setInterval(() => {
+      adminleavesFetchLeaves();
+    }, 30000);
+    
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const adminleavesRequestLeave = async (e) => {
@@ -114,12 +128,15 @@ const AdminLeaves = () => {
       const response = await fetch(`/api/admin/leaves/${id}/approve`, { method: 'PUT' });
       if (response.ok) {
         adminleavesAddAlert('Leave approved successfully! Replacement teachers will be notified.', 'success');
+        // Refresh the list to show updated status
         await adminleavesFetchLeaves();
       } else {
-        adminleavesAddAlert('Error approving leave', 'error');
+        const errorData = await response.json().catch(() => ({}));
+        adminleavesAddAlert('Error approving leave: ' + (errorData.message || 'Unknown error'), 'error');
       }
     } catch (error) {
-      adminleavesAddAlert('Error approving leave', 'error');
+      console.error('Error approving leave:', error);
+      adminleavesAddAlert('Error approving leave: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 
@@ -127,16 +144,23 @@ const AdminLeaves = () => {
     const reason = prompt('Enter reason for rejection (optional):');
     
     try {
-      await fetch(`/api/admin/leaves/${id}/reject`, {
+      const response = await fetch(`/api/admin/leaves/${id}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason })
+        body: JSON.stringify({ reason: reason || '' })
       });
       
-      adminleavesAddAlert('Leave request rejected', 'success');
-      await adminleavesFetchLeaves();
+      if (response.ok) {
+        adminleavesAddAlert('Leave request rejected', 'success');
+        // Refresh the list to show updated status
+        await adminleavesFetchLeaves();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        adminleavesAddAlert('Error rejecting leave: ' + (errorData.message || 'Unknown error'), 'error');
+      }
     } catch (error) {
-      adminleavesAddAlert('Error rejecting leave', 'error');
+      console.error('Error rejecting leave:', error);
+      adminleavesAddAlert('Error rejecting leave: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 
@@ -144,7 +168,11 @@ const AdminLeaves = () => {
     let filtered = adminleavesList;
     
     if (adminleavesFilterStatus !== 'ALL') {
-      filtered = filtered.filter(leave => leave.status === adminleavesFilterStatus);
+      filtered = filtered.filter(leave => {
+        // Handle both new format (status) and old format (approved)
+        const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
+        return status === adminleavesFilterStatus;
+      });
     }
     
     if (adminleavesFilterTerm) {
@@ -157,7 +185,9 @@ const AdminLeaves = () => {
     return filtered;
   };
 
-  const adminleavesGetStatusColor = (status) => {
+  const adminleavesGetStatusColor = (leave) => {
+    // Handle both new format (status) and old format (approved)
+    const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
     const colors = {
       'PENDING': 'adminleaves-status-pending',
       'APPROVED': 'adminleaves-status-approved',
@@ -166,7 +196,9 @@ const AdminLeaves = () => {
     return colors[status] || 'adminleaves-status-pending';
   };
 
-  const adminleavesGetStatusIcon = (status) => {
+  const adminleavesGetStatusIcon = (leave) => {
+    // Handle both new format (status) and old format (approved)
+    const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
     const icons = {
       'PENDING': '⏳',
       'APPROVED': '✅',
@@ -175,31 +207,49 @@ const AdminLeaves = () => {
     return icons[status] || '⏳';
   };
 
-  const adminleavesGetLeaveTypeLabel = (type) => {
-    const labels = {
-      'FULL_DAY': 'Full Day',
-      'FIRST_HALF': 'First Half',
-      'SECOND_HALF': 'Second Half'
-    };
-    return labels[type] || type;
+  const adminleavesGetStatusLabel = (leave) => {
+    // Handle both new format (status) and old format (approved)
+    return leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
   };
 
-  const adminleavesGetLeaveTypeBadge = (type) => {
-    const classes = {
-      'FULL_DAY': 'adminleaves-type-full',
-      'FIRST_HALF': 'adminleaves-type-half',
-      'SECOND_HALF': 'adminleaves-type-half'
-    };
-    return classes[type] || 'adminleaves-type-full';
+  const adminleavesGetLeaveTypeLabel = (leave) => {
+    // Handle new format (type: FULL_DAY, FIRST_HALF, SECOND_HALF)
+    if (leave.type) {
+      const labels = {
+        'FULL_DAY': 'Full Day',
+        'FIRST_HALF': 'First Half',
+        'SECOND_HALF': 'Second Half'
+      };
+      return labels[leave.type] || leave.type;
+    }
+    // Handle old format (leave_type: Full/Half, half_day_type: First/Second)
+    if (leave.leave_type === 'Full') return 'Full Day';
+    if (leave.leave_type === 'Half') {
+      return leave.half_day_type === 'First' ? 'First Half' : 'Second Half';
+    }
+    return 'Full Day';
   };
 
-  const adminleavesCalculateLeaveDays = (startDate, endDate, type) => {
+  const adminleavesGetLeaveTypeBadge = (leave) => {
+    // Handle new format
+    if (leave.type) {
+      if (leave.type === 'FULL_DAY') return 'adminleaves-type-full';
+      return 'adminleaves-type-half';
+    }
+    // Handle old format
+    if (leave.leave_type === 'Full') return 'adminleaves-type-full';
+    return 'adminleaves-type-half';
+  };
+
+  const adminleavesCalculateLeaveDays = (startDate, endDate, leave) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     
-    if (type === 'FULL_DAY') {
+    // Handle new format
+    const isFullDay = leave.type === 'FULL_DAY' || (leave.leave_type === 'Full');
+    if (isFullDay) {
       return diffDays;
     } else {
       return diffDays * 0.5;
@@ -246,7 +296,10 @@ const AdminLeaves = () => {
               <div className="adminleaves-stat-icon">⏳</div>
               <div className="adminleaves-stat-content">
                 <h3 className="adminleaves-stat-value">
-                  {adminleavesList.filter(l => l.status === 'PENDING').length}
+                  {adminleavesList.filter(l => {
+                    const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
+                    return status === 'PENDING';
+                  }).length}
                 </h3>
                 <p className="adminleaves-stat-label">Pending Requests</p>
               </div>
@@ -256,7 +309,10 @@ const AdminLeaves = () => {
               <div className="adminleaves-stat-icon">✅</div>
               <div className="adminleaves-stat-content">
                 <h3 className="adminleaves-stat-value">
-                  {adminleavesList.filter(l => l.status === 'APPROVED').length}
+                  {adminleavesList.filter(l => {
+                    const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
+                    return status === 'APPROVED';
+                  }).length}
                 </h3>
                 <p className="adminleaves-stat-label">Approved</p>
               </div>
@@ -266,7 +322,10 @@ const AdminLeaves = () => {
               <div className="adminleaves-stat-icon">❌</div>
               <div className="adminleaves-stat-content">
                 <h3 className="adminleaves-stat-value">
-                  {adminleavesList.filter(l => l.status === 'REJECTED').length}
+                  {adminleavesList.filter(l => {
+                    const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
+                    return status === 'REJECTED';
+                  }).length}
                 </h3>
                 <p className="adminleaves-stat-label">Rejected</p>
               </div>
@@ -339,7 +398,11 @@ const AdminLeaves = () => {
             <div className="adminleaves-no-data">
               <div className="adminleaves-no-data-icon">📋</div>
               <h3>No Leave Requests Found</h3>
-              <p>No leave requests match the current filters</p>
+              <p>
+                {adminleavesList.length === 0 
+                  ? 'No leave requests have been submitted yet. Teachers can submit leave requests from their dashboard.'
+                  : 'No leave requests match the current filters. Try adjusting your filter criteria.'}
+              </p>
             </div>
           ) : (
             <div className="adminleaves-cards-grid">
@@ -353,13 +416,15 @@ const AdminLeaves = () => {
                       </div>
                       <div className="adminleaves-teacher-details">
                         <h3 className="adminleaves-teacher-name">
-                          {leave.user_id?.name || 'Unknown Teacher'}
+                          {leave.user_id?.name || leave.user_id || 'Unknown Teacher'}
                         </h3>
-                        <span className="adminleaves-teacher-role">Teacher</span>
+                        <span className="adminleaves-teacher-role">
+                          {leave.user_id?.role || 'Teacher'}
+                        </span>
                       </div>
                     </div>
-                    <div className={`adminleaves-status-badge ${adminleavesGetStatusColor(leave.status)}`}>
-                      {adminleavesGetStatusIcon(leave.status)} {leave.status}
+                    <div className={`adminleaves-status-badge ${adminleavesGetStatusColor(leave)}`}>
+                      {adminleavesGetStatusIcon(leave)} {adminleavesGetStatusLabel(leave)}
                     </div>
                   </div>
 
@@ -370,8 +435,8 @@ const AdminLeaves = () => {
                         <span className="adminleaves-info-icon">📅</span>
                         <div className="adminleaves-info-content">
                           <span className="adminleaves-info-label">Leave Type</span>
-                          <span className={`adminleaves-type-badge ${adminleavesGetLeaveTypeBadge(leave.type)}`}>
-                            {adminleavesGetLeaveTypeLabel(leave.type)}
+                          <span className={`adminleaves-type-badge ${adminleavesGetLeaveTypeBadge(leave)}`}>
+                            {adminleavesGetLeaveTypeLabel(leave)}
                           </span>
                         </div>
                       </div>
@@ -411,7 +476,7 @@ const AdminLeaves = () => {
                         <div className="adminleaves-info-content">
                           <span className="adminleaves-info-label">Duration</span>
                           <span className="adminleaves-info-value">
-                            {adminleavesCalculateLeaveDays(leave.start_date, leave.end_date, leave.type)} days
+                            {adminleavesCalculateLeaveDays(leave.start_date, leave.end_date, leave)} days
                           </span>
                         </div>
                       </div>
@@ -429,7 +494,7 @@ const AdminLeaves = () => {
                   </div>
 
                   {/* Card Actions */}
-                  {leave.status === 'PENDING' && (
+                  {(!leave.status || leave.status === 'PENDING') && leave.approved !== true && (
                     <div className="adminleaves-card-actions">
                       <button
                         className="adminleaves-btn adminleaves-btn-approve"
@@ -446,7 +511,7 @@ const AdminLeaves = () => {
                     </div>
                   )}
                   
-                  {leave.status === 'APPROVED' && (
+                  {(leave.status === 'APPROVED' || leave.approved === true) && (
                     <div className="adminleaves-replacement-info">
                       <div className="adminleaves-replacement-header">
                         <span className="adminleaves-replacement-icon">🔄</span>

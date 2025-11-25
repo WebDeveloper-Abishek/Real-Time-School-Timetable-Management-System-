@@ -11,6 +11,8 @@ const classTimetableSchema = new mongoose.Schema(
       enum: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], 
       required: true 
     },
+    is_double_period: { type: Boolean, default: false },
+    term_id: { type: mongoose.Schema.Types.ObjectId, ref: "Term" }
   },
   { timestamps: true }
 );
