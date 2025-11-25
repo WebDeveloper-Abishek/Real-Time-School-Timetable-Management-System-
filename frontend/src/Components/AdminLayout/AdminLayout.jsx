@@ -313,7 +313,14 @@ const AdminLayout = ({ children, pageTitle = "Admin Dashboard", pageDescription 
             </div>
             <div className="header-notifications">
               <NotificationSystem type="bell" />
-              <ChatCenter userRole="Admin" userId={JSON.parse(localStorage.getItem('user') || '{}').id} />
+              <ChatCenter userRole="Admin" userId={(() => {
+                try {
+                  const user = JSON.parse(localStorage.getItem('user') || '{}');
+                  return user.id || user._id;
+                } catch {
+                  return null;
+                }
+              })()} />
             </div>
             <div className="header-profile" onClick={toggleSidebar}>
               <div className="profile-avatar">👤</div>

@@ -1,17 +1,75 @@
 import Chat from '../models/Chat.js';
 import User from '../models/User.js';
+import StudentParentLink from '../models/StudentParentLink.js';
+import UserClassAssignment from '../models/UserClassAssignment.js';
+import TeacherSubjectAssignment from '../models/TeacherSubjectAssignment.js';
+import Meeting from '../models/Meeting.js';
+import mongoose from 'mongoose';
 
-// Get all users for chat selection (excluding current user)
+// Get all users for chat selection (excluding current user) with role-based filtering
 export const getAllUsersForChat = async (req, res) => {
   try {
     const { userId } = req.params;
     
+    // Get current user to determine their role
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const userRole = currentUser.role;
+    let allowedUserIds = null;
+
+    // Role-based filtering
+    if (userRole === 'Admin' || userRole === 'Teacher') {
+      // Admin and Teacher can chat with all users - no filtering needed
+      allowedUserIds = null;
+    } else if (userRole === 'Parent') {
+      // Parent can chat with:
+      // 1. Teachers associated with their linked students
+      // 2. Counsellors
+      allowedUserIds = await getUsersForParent(userId);
+    } else if (userRole === 'Student') {
+      // Student can chat with:
+      // 1. Teachers
+      // 2. Counsellors
+      const teachers = await User.find({ role: 'Teacher', is_deleted: { $ne: true } }, '_id');
+      const counsellors = await User.find({ role: 'Counsellor', is_deleted: { $ne: true } }, '_id');
+      allowedUserIds = [...teachers.map(t => t._id), ...counsellors.map(c => c._id)];
+    } else if (userRole === 'Counsellor') {
+      // Counsellor can chat with:
+      // 1. Students who scheduled appointments with them
+      // 2. All other users (Admin, Teacher, Parent, other Counsellors)
+      allowedUserIds = await getUsersForCounsellor(userId);
+    } else {
+      allowedUserIds = [];
+    }
+
+    // Build query
+    const query = {
+      _id: { $ne: userId },
+      is_deleted: { $ne: true }
+    };
+
+    if (allowedUserIds !== null && allowedUserIds.length > 0) {
+      query._id = { $ne: userId, $in: allowedUserIds };
+    } else if (allowedUserIds !== null && allowedUserIds.length === 0) {
+      // No allowed users
+      return res.json({ 
+        users: {
+          Admin: [],
+          Teacher: [],
+          Student: [],
+          Parent: [],
+          Counsellor: []
+        },
+        totalUsers: 0 
+      });
+    }
+
     // Get all users except the current user and exclude deleted users
     const users = await User.find(
-      { 
-        _id: { $ne: userId },
-        is_deleted: { $ne: true } // Exclude deleted users
-      }, 
+      query, 
       'name email role profile_picture'
     ).sort({ name: 1 });
 
@@ -29,7 +87,127 @@ export const getAllUsersForChat = async (req, res) => {
       totalUsers: users.length 
     });
   } catch (error) {
+    console.error('Error fetching users for chat:', error);
     res.status(500).json({ message: 'Error fetching users for chat', error: error.message });
+  }
+};
+
+// Helper function to get users a parent can chat with
+const getUsersForParent = async (parentId) => {
+  try {
+    // Get linked students
+    const studentLinks = await StudentParentLink.find({ parent_id: parentId })
+      .populate('student_id', '_id');
+    
+    const studentIds = studentLinks
+      .map(link => link.student_id?._id)
+      .filter(Boolean);
+
+    if (studentIds.length === 0) {
+      // No students linked, return only counsellors
+      const counsellors = await User.find({ role: 'Counsellor', is_deleted: { $ne: true } }, '_id');
+      return counsellors.map(c => c._id);
+    }
+
+    // Get classes of these students
+    const classAssignments = await UserClassAssignment.find({
+      user_id: { $in: studentIds }
+    }).populate('class_id', '_id');
+
+    const classIds = classAssignments
+      .map(assignment => assignment.class_id?._id)
+      .filter(Boolean);
+
+    if (classIds.length === 0) {
+      // No classes found, return only counsellors
+      const counsellors = await User.find({ role: 'Counsellor', is_deleted: { $ne: true } }, '_id');
+      return counsellors.map(c => c._id);
+    }
+
+    // Get teachers assigned to these classes
+    const teacherAssignments = await TeacherSubjectAssignment.find({
+      class_id: { $in: classIds }
+    }).populate('user_id', '_id');
+
+    const teacherIds = teacherAssignments
+      .map(assignment => assignment.user_id?._id)
+      .filter(Boolean);
+
+    // Get unique teacher IDs
+    const uniqueTeacherIdStrings = [...new Set(teacherIds.map(id => id.toString()))];
+    const uniqueTeacherIds = uniqueTeacherIdStrings.map(idStr => {
+      return teacherIds.find(tid => tid.toString() === idStr);
+    }).filter(Boolean);
+
+    // Get all counsellors
+    const counsellors = await User.find({ role: 'Counsellor', is_deleted: { $ne: true } }, '_id');
+    const counsellorIds = counsellors.map(c => c._id);
+
+    // Combine teachers and counsellors
+    return [...uniqueTeacherIds, ...counsellorIds];
+  } catch (error) {
+    console.error('Error getting users for parent:', error);
+    // Fallback: return only counsellors
+    const counsellors = await User.find({ role: 'Counsellor', is_deleted: { $ne: true } }, '_id');
+    return counsellors.map(c => c._id);
+  }
+};
+
+// Helper function to get users a counsellor can chat with
+const getUsersForCounsellor = async (counsellorId) => {
+  try {
+    // Get students who scheduled appointments with this counsellor
+    // Check both as initiator and receiver
+    const meetings = await Meeting.find({
+      $or: [
+        { initiator_id: counsellorId },
+        { receiver_id: counsellorId }
+      ]
+    }).populate('initiator_id', '_id role')
+      .populate('receiver_id', '_id role');
+
+    const studentIds = new Set();
+    
+    meetings.forEach(meeting => {
+      // If counsellor is the receiver, the initiator is the student who scheduled
+      if (meeting.receiver_id?._id.toString() === counsellorId.toString() &&
+          meeting.initiator_id && 
+          meeting.initiator_id.role === 'Student') {
+        studentIds.add(meeting.initiator_id._id.toString());
+      }
+      // If counsellor is the initiator, the receiver is the student
+      if (meeting.initiator_id?._id.toString() === counsellorId.toString() &&
+          meeting.receiver_id && 
+          meeting.receiver_id.role === 'Student') {
+        studentIds.add(meeting.receiver_id._id.toString());
+      }
+    });
+
+    // Get all other users (Admin, Teacher, Parent, other Counsellors)
+    const otherUsers = await User.find({
+      _id: { $ne: counsellorId },
+      role: { $in: ['Admin', 'Teacher', 'Parent', 'Counsellor'] },
+      is_deleted: { $ne: true }
+    }, '_id');
+
+    // Combine student IDs with other user IDs
+    const studentObjectIds = Array.from(studentIds).map(id => {
+      try {
+        return new mongoose.Types.ObjectId(id);
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
+    return [...studentObjectIds, ...otherUsers.map(u => u._id)];
+  } catch (error) {
+    console.error('Error getting users for counsellor:', error);
+    // Fallback: return all users except self
+    const allUsers = await User.find({
+      _id: { $ne: counsellorId },
+      is_deleted: { $ne: true }
+    }, '_id');
+    return allUsers.map(u => u._id);
   }
 };
 
@@ -422,5 +600,36 @@ export const updateTypingStatus = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error updating typing status', error: error.message });
+  }
+};
+
+// Delete entire conversation between two users
+export const deleteConversation = async (req, res) => {
+  try {
+    const { userId, otherUserId } = req.params;
+
+    // Soft delete all messages in the conversation
+    const result = await Chat.updateMany(
+      {
+        $or: [
+          { sender_id: userId, receiver_id: otherUserId },
+          { sender_id: otherUserId, receiver_id: userId }
+        ],
+        is_deleted: { $ne: true }
+      },
+      {
+        is_deleted: true,
+        deleted_at: new Date(),
+        message: 'This message was deleted'
+      }
+    );
+
+    res.json({ 
+      message: 'Conversation deleted', 
+      deletedCount: result.modifiedCount 
+    });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({ message: 'Error deleting conversation', error: error.message });
   }
 };

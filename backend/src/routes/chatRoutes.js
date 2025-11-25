@@ -12,7 +12,8 @@ import {
   removeReaction,
   searchMessages,
   markMessageAsDelivered,
-  updateTypingStatus
+  updateTypingStatus,
+  deleteConversation
 } from '../controllers/chatController.js';
 
 const router = express.Router();
@@ -55,5 +56,8 @@ router.get('/:userId/unread-count', getUnreadMessageCount);
 
 // Delete a message
 router.delete('/:messageId', deleteMessage);
+
+// Delete entire conversation between two users
+router.delete('/conversation/:userId/:otherUserId', deleteConversation);
 
 export default router;

@@ -21,7 +21,7 @@ const DashboardLayout = ({
   
   // Get user info for components
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const userId = user.id;
+  const userId = user.id || user._id;
 
   const go = (path) => () => navigate(path);
 
