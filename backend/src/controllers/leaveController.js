@@ -121,15 +121,21 @@ export const rejectLeave = async (req, res) => {
 
 export const listLeaves = async (req, res) => {
   try {
-    const { user_id, approved } = req.query;
+    const { user_id, approved, role } = req.query;
     const filter = {};
     if (user_id) filter.user_id = user_id;
     if (approved !== undefined) filter.approved = approved === 'true';
     
-    const list = await LeaveRecord.find(filter)
-      .populate('user_id', 'name role')
+    // First get all leaves
+    let list = await LeaveRecord.find(filter)
+      .populate('user_id', 'name role email')
       .populate('term_id', 'term_number academic_year_id')
       .sort({ createdAt: -1 });
+    
+    // Filter by role if provided (for admin to see only teacher leaves)
+    if (role) {
+      list = list.filter(leave => leave.user_id && leave.user_id.role === role);
+    }
     
     return res.json(list);
   } catch (e) { 

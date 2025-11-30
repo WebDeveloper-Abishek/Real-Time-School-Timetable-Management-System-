@@ -81,8 +81,8 @@ const AdminLeaves = () => {
       setAdminleavesLoading(true);
       setError(null);
       const token = localStorage.getItem('token') || '';
-      // Fetch ALL leave requests from ALL teachers (no user_id filter)
-      const r = await fetch('http://localhost:5000/api/admin/leaves', {
+      // Fetch ALL leave requests from ALL teachers (filter by role=Teacher)
+      const r = await fetch('http://localhost:5000/api/admin/leaves?role=Teacher', {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
@@ -179,7 +179,14 @@ const AdminLeaves = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/leaves/${id}/approve`, { method: 'PUT' });
+      const token = localStorage.getItem('token') || '';
+      const response = await fetch(`http://localhost:5000/api/admin/leaves/${id}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       if (response.ok) {
         adminleavesAddAlert('Leave approved successfully! Replacement teachers will be notified.', 'success');
         // Refresh the list to show updated status
@@ -198,9 +205,13 @@ const AdminLeaves = () => {
     const reason = prompt('Enter reason for rejection (optional):');
     
     try {
+      const token = localStorage.getItem('token') || '';
       const response = await fetch(`http://localhost:5000/api/admin/leaves/${id}/reject`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         body: JSON.stringify({ reason: reason || '' })
       });
       
@@ -611,18 +622,20 @@ const AdminLeaves = () => {
                     </div>
                   </div>
 
-                  {/* Card Actions */}
-                  {(!leave.status || leave.status === 'PENDING') && leave.approved !== true && (
+                  {/* Card Actions - Show for pending requests (not approved and not rejected) */}
+                  {leave.approved !== true && leave.status !== 'REJECTED' && (
                     <div className="adminleaves-card-actions">
                       <button
                         className="adminleaves-btn adminleaves-btn-approve"
                         onClick={() => adminleavesApprove(leave._id)}
+                        disabled={adminleavesLoading}
                       >
                         ✅ Approve
                       </button>
                       <button
                         className="adminleaves-btn adminleaves-btn-reject"
                         onClick={() => adminleavesReject(leave._id)}
+                        disabled={adminleavesLoading}
                       >
                         ❌ Reject
                       </button>

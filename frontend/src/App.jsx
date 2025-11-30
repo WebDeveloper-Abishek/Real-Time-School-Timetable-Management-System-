@@ -66,7 +66,6 @@ import ParentChildren from './pages/ParentDashboard/Children/ParentChildren';
 import ParentAttendance from './pages/ParentDashboard/Attendance/ParentAttendance';
 
 // Admin Additional Pages
-import AdminUnassignedTeachers from './pages/AdminDashboard/UnassignedTeachers/AdminUnassignedTeachers';
 import AdminReplacements from './pages/AdminDashboard/Replacements/AdminReplacements';
 
 import Navbar from './Components/Navbar/Navbar';
@@ -231,14 +230,6 @@ const AppWrapper = () => {
           element={
             <ProtectedRoute allowedRoles={['Admin']}>
               <AdminExams />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/admin/unassigned-teachers" 
-          element={
-            <ProtectedRoute allowedRoles={['Admin']}>
-              <AdminUnassignedTeachers />
             </ProtectedRoute>
           } 
         />

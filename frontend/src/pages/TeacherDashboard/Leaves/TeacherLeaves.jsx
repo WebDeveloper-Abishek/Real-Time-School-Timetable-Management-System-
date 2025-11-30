@@ -31,8 +31,17 @@ const TeacherLeaves = () => {
 
   const teacherleavesFetchTerms = async () => {
     try {
-      const r = await fetch('http://localhost:5000/api/admin/terms');
-      if (!r.ok) throw new Error('Failed to fetch terms');
+      const token = localStorage.getItem('token') || '';
+      const r = await fetch('http://localhost:5000/api/teacher/terms', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      if (!r.ok) {
+        const errorText = await r.text();
+        throw new Error(`Failed to fetch terms: ${r.status} ${r.statusText}`);
+      }
       const data = await r.json();
       const terms = Array.isArray(data) ? data : [];
       setTeacherleavesTerms(terms);
@@ -58,7 +67,7 @@ const TeacherLeaves = () => {
       }
     } catch (error) {
       console.error('Error fetching terms:', error);
-      teacherleavesAddAlert('Error fetching terms', 'error');
+      teacherleavesAddAlert('Error fetching terms: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 
@@ -66,8 +75,17 @@ const TeacherLeaves = () => {
     try {
       setTeacherleavesLoading(true);
       const userId = user.id || user._id;
-      const r = await fetch(`http://localhost:5000/api/teacher/leaves?user_id=${userId}`);
-      if (!r.ok) throw new Error('Failed to fetch leaves');
+      const token = localStorage.getItem('token') || '';
+      const r = await fetch(`http://localhost:5000/api/teacher/leaves?user_id=${userId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      if (!r.ok) {
+        const errorText = await r.text();
+        throw new Error(`Failed to fetch leaves: ${r.status} ${r.statusText}`);
+      }
       const data = await r.json();
       const leaves = Array.isArray(data) ? data : [];
       // Sort by creation date (newest first)
@@ -101,7 +119,7 @@ const TeacherLeaves = () => {
 
     // Ensure term_id is set (should already be set automatically, but double-check)
     if (!teacherleavesForm.term_id) {
-      const currentTerm = adminleavesTerms.find(term => term.is_active === true);
+      const currentTerm = teacherleavesTerms.find(term => term.is_active === true);
       if (currentTerm) {
         setTeacherleavesForm(prev => ({ ...prev, term_id: currentTerm._id }));
       } else {
@@ -460,20 +478,25 @@ const TeacherLeaves = () => {
               
               <form onSubmit={teacherleavesRequestLeave} className="teacherleaves-modal-form">
                 <div className="teacherleaves-form-group">
-                  <label htmlFor="teacherleaves-term-select">Term (Optional)</label>
+                  <label htmlFor="teacherleaves-term-select">Current Term *</label>
                   <select
                     id="teacherleaves-term-select"
                     value={teacherleavesForm.term_id}
                     onChange={(e) => setTeacherleavesForm({...teacherleavesForm, term_id: e.target.value})}
                     className="teacherleaves-form-select"
+                    required
+                    disabled={!teacherleavesForm.term_id}
                   >
-                    <option value="">Select Term (Optional)</option>
+                    <option value="">{teacherleavesForm.term_id ? 'Loading...' : 'Loading current term...'}</option>
                     {teacherleavesTerms.map(term => (
                       <option key={term._id} value={term._id}>
-                        Term {term.term_number} - {term.academic_year_id?.year_label || ''}
+                        Term {term.term_number} - {term.academic_year_id?.year_label || ''} {term.is_active ? '(Current)' : ''}
                       </option>
                     ))}
                   </select>
+                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Current active term is automatically selected
+                  </small>
                 </div>
                 
                 <div className="teacherleaves-form-row">
