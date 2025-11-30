@@ -52,7 +52,20 @@ const AdminAttendance = () => {
     try {
       const r = await fetch(`/api/admin/classes?term_id=${termId}`);
       const data = await r.json();
-      setAdminattendClasses(data || []);
+      if (Array.isArray(data)) {
+        // Sort classes by grade (ascending) then by section (ascending)
+        const sortedClasses = [...data].sort((a, b) => {
+          const gradeA = parseInt(a.grade) || 0;
+          const gradeB = parseInt(b.grade) || 0;
+          if (gradeA !== gradeB) {
+            return gradeA - gradeB;
+          }
+          return (a.section || '').localeCompare(b.section || '');
+        });
+        setAdminattendClasses(sortedClasses);
+      } else {
+        setAdminattendClasses([]);
+      }
     } catch (error) {
       adminattendAddAlert('Error fetching classes', 'error');
     }

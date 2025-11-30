@@ -1,0 +1,41 @@
+.counsellorappointments-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.counsellorappointments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.counsellorappointments-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.counsellorappointments-card h3 {
+  margin: 0 0 0.5rem;
+  color: #1e293b;
+}
+
+.counsellorappointments-card p {
+  margin: 0;
+  color: #64748b;
+}
+
+.counsellorappointments-status {
+  padding: 0.5rem 1rem;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+

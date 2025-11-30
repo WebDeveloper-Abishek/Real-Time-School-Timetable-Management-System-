@@ -39,7 +39,6 @@ const createClassCreationNotification = async (className, grade, section, termNa
     }));
 
     await Notification.insertMany(notifications);
-    console.log(`Class ${action} notification created for ${users.length} users`);
   } catch (error) {
     console.error(`Error creating class ${action} notification:`, error);
   }
@@ -123,40 +122,60 @@ export const getClasses = async (req, res) => {
           select: 'year_label'
         }
       })
+      .lean()
       .sort({ grade: 1, section: 1 });
     
+    // Batch fetch all related data at once
+    const classIds = classes.map(c => c._id);
     
-    // Get teacher assignments, students, and teachers for each class
-    const classesWithAssignments = await Promise.all(
-      classes.map(async (classData) => {
-        const teacherAssignments = await TeacherSubjectAssignment.find({ class_id: classData._id })
-          .populate('user_id', 'name')
-          .populate('subject_id', 'subject_name');
-        
-        const students = await UserClassAssignment.find({ 
-          class_id: classData._id, 
-          is_class_teacher: false 
-        }).populate('user_id', 'name role');
+    const [allTeacherAssignments, allUserAssignments] = await Promise.all([
+      TeacherSubjectAssignment.find({ class_id: { $in: classIds } })
+        .populate('user_id', 'name')
+        .populate('subject_id', 'subject_name')
+        .lean(),
+      UserClassAssignment.find({ class_id: { $in: classIds } })
+        .populate('user_id', 'name role')
+        .lean()
+    ]);
 
-        const teachers = await UserClassAssignment.find({ 
-          class_id: classData._id, 
-          is_class_teacher: true 
-        }).populate('user_id', 'name role');
+    // Create lookup maps
+    const teacherAssignmentsMap = new Map();
+    const studentsMap = new Map();
+    const teachersMap = new Map();
+    const classTeacherMap = new Map();
 
-        const classTeacher = await UserClassAssignment.findOne({ 
-          class_id: classData._id, 
-          is_class_teacher: true 
-        }).populate('user_id', 'name role');
-        
-        return {
-          ...classData.toObject(),
-          students: students.map(s => s.user_id),
-          teachers: teachers.map(t => t.user_id),
-          class_teacher: classTeacher,
-          teacher_assignments: teacherAssignments
-        };
-      })
-    );
+    allTeacherAssignments.forEach(ta => {
+      const cid = ta.class_id.toString();
+      if (!teacherAssignmentsMap.has(cid)) teacherAssignmentsMap.set(cid, []);
+      teacherAssignmentsMap.get(cid).push(ta);
+    });
+
+    allUserAssignments.forEach(ua => {
+      const cid = ua.class_id.toString();
+      if (ua.is_class_teacher) {
+        if (!teachersMap.has(cid)) teachersMap.set(cid, []);
+        teachersMap.get(cid).push(ua.user_id);
+        // Store first class teacher found
+        if (!classTeacherMap.has(cid)) {
+          classTeacherMap.set(cid, ua);
+        }
+      } else {
+        if (!studentsMap.has(cid)) studentsMap.set(cid, []);
+        studentsMap.get(cid).push(ua.user_id);
+      }
+    });
+    
+    // Build response efficiently
+    const classesWithAssignments = classes.map(classData => {
+      const classId = classData._id.toString();
+      return {
+        ...classData,
+        students: (studentsMap.get(classId) || []).filter(s => s !== null && s !== undefined),
+        teachers: (teachersMap.get(classId) || []).filter(t => t !== null && t !== undefined),
+        class_teacher: classTeacherMap.get(classId) || null,
+        teacher_assignments: teacherAssignmentsMap.get(classId) || []
+      };
+    });
     
     res.json(classesWithAssignments);
   } catch (error) {
@@ -189,16 +208,35 @@ export const getClass = async (req, res) => {
     }).populate('user_id', 'name role');
 
     // Get all students assigned to this class
-    const students = await UserClassAssignment.find({ 
+    const studentAssignments = await UserClassAssignment.find({ 
       class_id: id, 
       is_class_teacher: false 
-    }).populate('user_id', 'name role');
+    }).populate({
+      path: 'user_id',
+      select: 'name role email'
+    });
+    
+    // Filter out assignments where user_id is null (populate failed or user deleted) 
+    // and ensure we only include actual students
+    const students = studentAssignments
+      .filter(s => s.user_id !== null && s.user_id !== undefined)
+      .map(s => s.user_id)
+      .filter(user => user.role === 'Student'); // Double-check role is Student
 
     // Get all teachers assigned to this class
-    const teachers = await UserClassAssignment.find({ 
+    const teacherAssignmentsForClass = await UserClassAssignment.find({ 
       class_id: id, 
       is_class_teacher: true 
-    }).populate('user_id', 'name role');
+    }).populate({
+      path: 'user_id',
+      select: 'name role email'
+    });
+
+    // Filter out assignments where user_id is null and ensure role is Teacher
+    const teachers = teacherAssignmentsForClass
+      .filter(t => t.user_id !== null && t.user_id !== undefined)
+      .map(t => t.user_id)
+      .filter(user => user.role === 'Teacher'); // Double-check role is Teacher
 
     // Get all subject teacher assignments for this class
     const teacherAssignments = await TeacherSubjectAssignment.find({ class_id: id })
@@ -208,8 +246,8 @@ export const getClass = async (req, res) => {
     res.json({
       ...classData.toObject(),
       class_teacher: classTeacher,
-      students: students.map(s => s.user_id),
-      teachers: teachers.map(t => t.user_id),
+      students: students,
+      teachers: teachers,
       teacher_assignments: teacherAssignments
     });
   } catch (error) {
@@ -362,6 +400,20 @@ export const assignClassTeacher = async (req, res) => {
       return res.status(404).json({ message: "Teacher not found" });
     }
 
+    // Check if this class already has a class teacher assigned
+    const existingClassTeacherForThisClass = await UserClassAssignment.findOne({
+      class_id,
+      is_class_teacher: true
+    });
+
+    if (existingClassTeacherForThisClass) {
+      const existingTeacher = await User.findById(existingClassTeacherForThisClass.user_id);
+      const teacherName = existingTeacher?.name || 'Unknown Teacher';
+      return res.status(400).json({ 
+        message: `This class already has a class teacher assigned (${teacherName}). Please remove the current class teacher before assigning a new one.` 
+      });
+    }
+
     // Check if teacher is already a class teacher for another class
     const existingClassTeacherAssignment = await UserClassAssignment.findOne({
       user_id: teacher_id,
@@ -372,12 +424,6 @@ export const assignClassTeacher = async (req, res) => {
     if (existingClassTeacherAssignment) {
       return res.status(400).json({ message: "Teacher is already assigned as class teacher to another class. Please remove them from their current class first." });
     }
-
-    // Remove existing class teacher for this class
-    await UserClassAssignment.updateMany(
-      { class_id, is_class_teacher: true },
-      { is_class_teacher: false }
-    );
 
     // Create or update assignment
     const assignment = await UserClassAssignment.findOneAndUpdate(
@@ -396,13 +442,82 @@ export const assignClassTeacher = async (req, res) => {
   }
 };
 
+// Helper function to calculate maximum course limit per subject for a class
+// Calculate max course limit based on current active term's current month weekdays (Monday-Friday) * 8 periods
+const calculateMaxCourseLimitForClass = async (class_id) => {
+  try {
+    // Get the current active term from the database
+    const currentTerm = await Term.findOne({ is_active: true }).sort({ createdAt: -1 });
+    
+    if (!currentTerm) {
+      // Default to 176 if no active term found (22 days * 8 = 176)
+      return 176;
+    }
+
+    // Step 2: Get the current month (today's month)
+    const today = new Date();
+    const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    // Step 3: Count weekdays (Monday-Friday) in the current month
+    let weekdayCount = 0;
+    const currentDate = new Date(currentMonth);
+    
+    while (currentDate <= lastDayOfMonth) {
+      const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      // Count Monday (1) through Friday (5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        weekdayCount++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Step 4: Multiply by 8 periods per day
+    const maxCourseLimit = weekdayCount * 8;
+    
+    return maxCourseLimit;
+  } catch (error) {
+    console.error('Error calculating max course limit:', error);
+    // Default to 160 periods if calculation fails (20 days * 8 = 160)
+    return 160;
+  }
+};
+
+const calculateMaxCourseLimitPerSubject = async (class_id) => {
+  const subjectCount = await TeacherSubjectAssignment.distinct('subject_id', { class_id });
+  const numberOfSubjects = subjectCount.length;
+  
+  if (numberOfSubjects === 0) {
+    const maxLimit = await calculateMaxCourseLimitForClass(class_id);
+    return maxLimit;
+  }
+  
+  const maxLimit = await calculateMaxCourseLimitForClass(class_id);
+  return Math.floor(maxLimit / numberOfSubjects);
+};
+
 // Assign Teacher to Subject
+// Get all teacher assignments for validation
+export const getAllTeacherAssignments = async (req, res) => {
+  try {
+    const assignments = await TeacherSubjectAssignment.find()
+      .populate('user_id', 'name role')
+      .populate('subject_id', 'subject_name')
+      .populate('class_id', 'class_name grade section');
+    
+    res.json(assignments);
+  } catch (error) {
+    console.error("Get all teacher assignments error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const assignTeacherToSubject = async (req, res) => {
   try {
-    const { teacher_id, subject_id, class_id, course_limit } = req.body;
+    const { teacher_id, subject_id, class_id, course_limit, religion_type } = req.body;
     
-    if (!teacher_id || !subject_id || !class_id || !course_limit) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (!teacher_id || !subject_id || !class_id) {
+      return res.status(400).json({ message: "Teacher ID, Subject ID, and Class ID are required" });
     }
 
     // Check if teacher exists and has Teacher role
@@ -412,8 +527,8 @@ export const assignTeacherToSubject = async (req, res) => {
     }
 
     // Check if subject exists
-    const subject = await Subject.findById(subject_id);
-    if (!subject) {
+    const subjectData = await Subject.findById(subject_id);
+    if (!subjectData) {
       return res.status(404).json({ message: "Subject not found" });
     }
 
@@ -423,68 +538,267 @@ export const assignTeacherToSubject = async (req, res) => {
       return res.status(404).json({ message: "Class not found" });
     }
 
-    // Check if assignment already exists
-    const existingAssignment = await TeacherSubjectAssignment.findOne({
+    // Validation 1: Check if subject is already assigned to this class (prevent duplicate subject-class)
+    // EXCEPTION: Allow multiple teachers for "Religion", "Tamil", and "Sinhala" subjects (for different types)
+    const subjectNameLower = subjectData?.subject_name?.toLowerCase().trim() || '';
+    const isReligionSubjectCheck = subjectNameLower === 'religion' || subjectNameLower.includes('religion');
+    const isTamilSubjectCheck = subjectNameLower === 'tamil' || subjectNameLower.includes('tamil');
+    const isSinhalaSubjectCheck = subjectNameLower === 'sinhala' || subjectNameLower.includes('sinhala');
+    const isSpecialSubject = isReligionSubjectCheck || isTamilSubjectCheck || isSinhalaSubjectCheck;
+    
+    if (!isSpecialSubject) {
+      // For non-special subjects, check if subject is already assigned to this class
+      const existingSubjectAssignment = await TeacherSubjectAssignment.findOne({
+        subject_id,
+        class_id,
+        user_id: { $exists: true, $ne: null } // Only check if teacher is assigned
+      });
+
+      if (existingSubjectAssignment) {
+        return res.status(400).json({ 
+          message: "This subject is already assigned to this class. Please select a different subject." 
+        });
+      }
+    }
+    // For Religion, Tamil, and Sinhala subjects, allow multiple teachers (one for each type)
+
+    // Validation 2: Check if teacher is already assigned to this subject-class combination
+    const existingAssignmentWithTeacher = await TeacherSubjectAssignment.findOne({
       user_id: teacher_id,
       subject_id,
       class_id
     });
 
-    if (existingAssignment) {
-      return res.status(400).json({ message: "Teacher is already assigned to this subject for this class" });
+    if (existingAssignmentWithTeacher) {
+      return res.status(400).json({ 
+        message: "This teacher is already assigned to this subject for this class." 
+      });
     }
 
-    // Get the class with term information
-    const classWithTerm = await Class.findById(class_id).populate('term_id');
-    const currentTerm = classWithTerm.term_id;
+    // Validation 3: Check if teacher already has 2 different subjects assigned
+    const teacherAssignments = await TeacherSubjectAssignment.find({
+      user_id: teacher_id
+    }).populate('subject_id', '_id subject_name');
 
-    // Check if this subject was assigned to this teacher in previous terms of the same academic year
-    const previousAssignments = await TeacherSubjectAssignment.find({
-      user_id: teacher_id,
-      subject_id,
-      'class_id': { $ne: class_id }
-    }).populate({
-      path: 'class_id',
-      populate: {
-        path: 'term_id',
-        populate: {
-          path: 'academic_year_id'
-        }
+    // Get unique subject IDs
+    const uniqueSubjectIds = new Set();
+    teacherAssignments.forEach(assignment => {
+      if (assignment.subject_id && assignment.subject_id._id) {
+        uniqueSubjectIds.add(assignment.subject_id._id.toString());
       }
     });
 
-    // Find assignments from previous terms in the same academic year
-    const sameYearAssignments = previousAssignments.filter(assignment => 
-      assignment.class_id.term_id.academic_year_id._id.toString() === 
-      currentTerm.academic_year_id.toString()
-    );
+    // Check if the new subject is already in the teacher's assignments
+    const isNewSubject = !uniqueSubjectIds.has(subject_id.toString());
 
-    let finalCourseLimit = parseInt(course_limit);
-
-    if (sameYearAssignments.length > 0) {
-      // Add remaining course limits from previous terms
-      const totalPreviousLimit = sameYearAssignments.reduce((sum, assignment) => {
-        return sum + (assignment.course_limit || 0);
-      }, 0);
+    // If it's a new subject and teacher already has 2 subjects, reject
+    if (isNewSubject && uniqueSubjectIds.size >= 2) {
+      const subjectNames = Array.from(uniqueSubjectIds).map(id => {
+        const assignment = teacherAssignments.find(a => 
+          a.subject_id && a.subject_id._id.toString() === id
+        );
+        return assignment?.subject_id?.subject_name || 'Unknown';
+      }).join(', ');
       
-      finalCourseLimit = totalPreviousLimit + parseInt(course_limit);
+      return res.status(400).json({ 
+        message: `Teacher can only be assigned to maximum 2 different subjects. This teacher is already assigned to: ${subjectNames}. You can assign this teacher to the same subject in a different class, but not to a third different subject.` 
+      });
     }
 
+    // All validations passed - validate course limit
+    // Course limit is required
+    if (course_limit === undefined || course_limit === null) {
+      return res.status(400).json({ message: "Course limit is required" });
+    }
+
+    const requestedLimit = parseInt(course_limit);
+    if (isNaN(requestedLimit) || requestedLimit < 1) {
+      return res.status(400).json({ message: "Invalid course limit. Must be a positive number." });
+    }
+
+    // Get max course limit for this class based on current month
+    const maxCourseLimit = await calculateMaxCourseLimitForClass(class_id);
+    
+    // Validate: individual subject course limit cannot exceed max
+    if (requestedLimit > maxCourseLimit) {
+      return res.status(400).json({ 
+        message: `Course limit (${requestedLimit}) cannot exceed the maximum allowed (${maxCourseLimit} periods) for this class.` 
+      });
+    }
+
+    // Get current assignments to calculate total
+    const existingAssignments = await TeacherSubjectAssignment.find({ class_id }).populate('subject_id', 'subject_name');
+    
+    // Helper functions to check if a subject is a special subject (by name)
+    const isReligionSubjectByName = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'religion' || name.includes('religion');
+    };
+    
+    const isTamilSubjectByName = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'tamil' || name.includes('tamil');
+    };
+    
+    const isSinhalaSubjectByName = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'sinhala' || name.includes('sinhala');
+    };
+    
+    // Get the subject being assigned
+    const assignedSubject = await Subject.findById(subject_id);
+    const isNewAssignmentReligion = assignedSubject && isReligionSubjectByName(assignedSubject.subject_name);
+    const isNewAssignmentTamil = assignedSubject && isTamilSubjectByName(assignedSubject.subject_name);
+    const isNewAssignmentSinhala = assignedSubject && isSinhalaSubjectByName(assignedSubject.subject_name);
+    
+    // Calculate current total, treating all religion subjects as ONE, and Tamil+Sinhala together as ONE
+    // Group special subjects together and count them as one each
+    const religionSubjects = new Set();
+    const languageSubjects = new Set(); // Tamil and Sinhala together
+    let currentTotal = 0;
+    let religionTotal = 0;
+    let languageTotal = 0; // Shared total for Tamil and Sinhala
+    
+    for (const assignment of existingAssignments) {
+      const subjName = assignment.subject_id?.subject_name;
+      if (isReligionSubjectByName(subjName)) {
+        // Track religion subjects but only count the maximum course limit once
+        religionSubjects.add(subjName);
+        religionTotal = Math.max(religionTotal, assignment.course_limit || 0);
+      } else if (isTamilSubjectByName(subjName) || isSinhalaSubjectByName(subjName)) {
+        // Track Tamil and Sinhala together - only count the maximum course limit once
+        languageSubjects.add(subjName);
+        languageTotal = Math.max(languageTotal, assignment.course_limit || 0);
+      } else {
+        // Regular subjects count normally
+        currentTotal += (assignment.course_limit || 0);
+      }
+    }
+    
+    // Add special subject totals as ONE subject each (only if there are subjects of that type)
+    if (religionSubjects.size > 0) {
+      currentTotal += religionTotal; // Count all religion subjects as ONE
+    }
+    if (languageSubjects.size > 0) {
+      currentTotal += languageTotal; // Count Tamil and Sinhala together as ONE
+    }
+    
+    // Calculate new total
+    let newTotal;
+    if (isNewAssignmentReligion) {
+      // If assigning a religion subject, check if other religion subjects exist
+      if (religionSubjects.size > 0) {
+        // Religion subjects already exist - only update if new limit is higher
+        const maxReligionLimit = Math.max(religionTotal, requestedLimit);
+        newTotal = currentTotal - religionTotal + maxReligionLimit;
+      } else {
+        // First religion subject, add it as one subject
+        newTotal = currentTotal + requestedLimit;
+      }
+    } else if (isNewAssignmentTamil || isNewAssignmentSinhala) {
+      // If assigning Tamil or Sinhala, check if language subjects (Tamil or Sinhala) exist
+      if (languageSubjects.size > 0) {
+        // Language subjects already exist - only update if new limit is higher
+        const maxLanguageLimit = Math.max(languageTotal, requestedLimit);
+        newTotal = currentTotal - languageTotal + maxLanguageLimit;
+      } else {
+        // First language subject (Tamil or Sinhala), add it as one subject
+        newTotal = currentTotal + requestedLimit;
+      }
+    } else {
+      // Regular subject, add normally
+      newTotal = currentTotal + requestedLimit;
+    }
+    
+    // Validate: total course limits cannot exceed max
+    if (newTotal > maxCourseLimit) {
+      const remaining = maxCourseLimit - currentTotal;
+      let specialNote = '';
+      if (isNewAssignmentReligion && religionSubjects.size > 0) {
+        specialNote = ' Note: All religion assignments count as 1 subject and share the same course limit.';
+      } else if ((isNewAssignmentTamil || isNewAssignmentSinhala) && languageSubjects.size > 0) {
+        specialNote = ' Note: Tamil and Sinhala assignments count as 1 subject together and share the same course limit.';
+      }
+      return res.status(400).json({ 
+        message: `Total course limits would exceed ${maxCourseLimit} periods. Current total: ${currentTotal}, Remaining available: ${remaining} periods. Please reduce the course limit.${specialNote}` 
+      });
+    }
+
+    // Create new assignment with the exact course limit set by admin (no auto-calculation)
     const assignment = await TeacherSubjectAssignment.create({
       user_id: teacher_id,
       subject_id,
       class_id,
-      course_limit: finalCourseLimit
+      course_limit: requestedLimit
     });
+
+    // Get all assignments to calculate total
+    const allAssignments = await TeacherSubjectAssignment.find({ class_id });
+    const totalCourseLimits = allAssignments.reduce((sum, a) => sum + (a.course_limit || 0), 0);
+    
+    // Get max course limit for response
+    const maxCourseLimitForResponse = await calculateMaxCourseLimitForClass(class_id);
 
     const populatedAssignment = await TeacherSubjectAssignment.findById(assignment._id)
       .populate('user_id', 'name role')
       .populate('subject_id', 'subject_name')
       .populate('class_id', 'class_name grade section');
 
+    // Calculate display total (treating religion subjects as one, and Tamil+Sinhala together as one)
+    const displayAssignments = await TeacherSubjectAssignment.find({ class_id }).populate('subject_id', 'subject_name');
+    const isReligionSubjectForDisplay = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'hinduism' || name === 'christianity' || name === 'muslim' || name === 'islam' || name === 'buddhism';
+    };
+    
+    const isLanguageSubjectForDisplay = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'tamil' || name.includes('tamil') || name === 'sinhala' || name.includes('sinhala');
+    };
+    
+    const displayReligionSubjects = new Set();
+    const displayLanguageSubjects = new Set();
+    let displayTotal = 0;
+    let displayReligionTotal = 0;
+    let displayLanguageTotal = 0;
+    
+    for (const a of displayAssignments) {
+      const subjName = a.subject_id?.subject_name;
+      if (isReligionSubjectForDisplay(subjName)) {
+        displayReligionSubjects.add(subjName);
+        displayReligionTotal = Math.max(displayReligionTotal, a.course_limit || 0);
+      } else if (isLanguageSubjectForDisplay(subjName)) {
+        displayLanguageSubjects.add(subjName);
+        displayLanguageTotal = Math.max(displayLanguageTotal, a.course_limit || 0);
+      } else {
+        displayTotal += (a.course_limit || 0);
+      }
+    }
+    
+    if (displayReligionSubjects.size > 0) {
+      displayTotal += displayReligionTotal;
+    }
+    if (displayLanguageSubjects.size > 0) {
+      displayTotal += displayLanguageTotal;
+    }
+    
+    let specialNote = '';
+    if (isNewAssignmentReligion && displayReligionSubjects.size > 0) {
+      specialNote = ' (Religion subjects counted as 1 subject)';
+    } else if ((isNewAssignmentTamil || isNewAssignmentSinhala) && displayLanguageSubjects.size > 0) {
+      specialNote = ' (Tamil and Sinhala counted as 1 subject together)';
+    }
+    
     res.status(201).json({
-      message: "Teacher assigned to subject successfully",
-      assignment: populatedAssignment
+      message: `Teacher assigned to subject successfully. Course limit set to ${requestedLimit} periods. Total course limits: ${displayTotal}/${maxCourseLimitForResponse} periods${specialNote}.`,
+      assignment: populatedAssignment,
+      total_course_limits: displayTotal,
+      max_total_allowed: maxCourseLimitForResponse
     });
   } catch (error) {
     console.error("Assign teacher to subject error:", error);
@@ -515,8 +829,11 @@ export const updateCourseLimit = async (req, res) => {
     const { id } = req.params;
     const { course_limit } = req.body;
     
-    if (!course_limit || course_limit < 1) {
-      return res.status(400).json({ message: "Course limit must be at least 1" });
+    const courseLimitValue = parseInt(course_limit);
+    
+    // Validate course limit is a positive number
+    if (isNaN(courseLimitValue) || courseLimitValue < 1) {
+      return res.status(400).json({ message: "Course limit must be a positive number" });
     }
 
     const assignment = await TeacherSubjectAssignment.findById(id);
@@ -524,7 +841,100 @@ export const updateCourseLimit = async (req, res) => {
       return res.status(404).json({ message: "Assignment not found" });
     }
 
-    assignment.course_limit = course_limit;
+    // Get all assignments for this class to calculate total
+    const allAssignments = await TeacherSubjectAssignment.find({ 
+      class_id: assignment.class_id 
+    }).populate('subject_id', 'subject_name');
+    
+    // Helper functions to check if a subject is a special subject (by name)
+    const isReligionSubjectByNameUpdate = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'religion' || name.includes('religion');
+    };
+    
+    const isTamilSubjectByNameUpdate = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'tamil' || name.includes('tamil');
+    };
+    
+    const isSinhalaSubjectByNameUpdate = (subjectName) => {
+      if (!subjectName) return false;
+      const name = subjectName.toLowerCase().trim();
+      return name === 'sinhala' || name.includes('sinhala');
+    };
+    
+    // Get the subject being updated
+    const updatedSubject = await Subject.findById(assignment.subject_id);
+    const isUpdatedSubjectReligion = updatedSubject && isReligionSubjectByNameUpdate(updatedSubject.subject_name);
+    const isUpdatedSubjectTamil = updatedSubject && isTamilSubjectByNameUpdate(updatedSubject.subject_name);
+    const isUpdatedSubjectSinhala = updatedSubject && isSinhalaSubjectByNameUpdate(updatedSubject.subject_name);
+    
+    // Calculate current total, treating all religion subjects as ONE, and Tamil+Sinhala together as ONE
+    const religionSubjects = new Set();
+    const languageSubjects = new Set(); // Tamil and Sinhala together
+    let currentTotal = 0;
+    let religionTotal = 0;
+    let languageTotal = 0;
+    
+    for (const a of allAssignments) {
+      if (a._id.toString() === id.toString()) {
+        continue; // Skip the assignment being updated
+      }
+      
+      const subjName = a.subject_id?.subject_name;
+      if (isReligionSubjectByNameUpdate(subjName)) {
+        religionSubjects.add(subjName);
+        religionTotal = Math.max(religionTotal, a.course_limit || 0);
+      } else if (isTamilSubjectByNameUpdate(subjName) || isSinhalaSubjectByNameUpdate(subjName)) {
+        languageSubjects.add(subjName);
+        languageTotal = Math.max(languageTotal, a.course_limit || 0);
+      } else {
+        currentTotal += (a.course_limit || 0);
+      }
+    }
+    
+    // Add special subject totals as ONE subject each
+    if (religionSubjects.size > 0) {
+      currentTotal += religionTotal;
+    }
+    if (languageSubjects.size > 0) {
+      currentTotal += languageTotal;
+    }
+    
+    // Get max course limit for this class
+    const maxCourseLimit = await calculateMaxCourseLimitForClass(assignment.class_id);
+    
+    // Calculate new total
+    let newTotal;
+    if (isUpdatedSubjectReligion) {
+      // If updating a religion subject, check if other religion subjects exist
+      if (religionSubjects.size > 0) {
+        newTotal = currentTotal - religionTotal + Math.max(religionTotal, courseLimitValue);
+      } else {
+        newTotal = currentTotal + courseLimitValue;
+      }
+    } else if (isUpdatedSubjectTamil || isUpdatedSubjectSinhala) {
+      // If updating Tamil or Sinhala, check if language subjects exist
+      if (languageSubjects.size > 0) {
+        newTotal = currentTotal - languageTotal + Math.max(languageTotal, courseLimitValue);
+      } else {
+        newTotal = currentTotal + courseLimitValue;
+      }
+    } else {
+      newTotal = currentTotal + courseLimitValue;
+    }
+    
+    // Validate: total course limits cannot exceed max
+    if (newTotal > maxCourseLimit) {
+      const remaining = maxCourseLimit - currentTotal;
+      return res.status(400).json({ 
+        message: `Total course limits would exceed ${maxCourseLimit} periods. Current total (excluding this subject): ${currentTotal}, Remaining available: ${remaining} periods. Please reduce the course limit.` 
+      });
+    }
+
+    assignment.course_limit = courseLimitValue;
     await assignment.save();
 
     const populatedAssignment = await TeacherSubjectAssignment.findById(id)
@@ -533,8 +943,10 @@ export const updateCourseLimit = async (req, res) => {
       .populate('class_id', 'class_name grade section');
 
     res.json({
-      message: "Course limit updated successfully",
-      assignment: populatedAssignment
+      message: `Course limit updated successfully. Course limit set to ${courseLimitValue} periods. Total course limits: ${newTotal}/${maxCourseLimit} periods.`,
+      assignment: populatedAssignment,
+      total_course_limits: newTotal,
+      max_total_allowed: maxCourseLimit
     });
   } catch (error) {
     console.error("Update course limit error:", error);

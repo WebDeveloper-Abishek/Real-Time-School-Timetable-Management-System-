@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import Account from "../models/Account.js";
+import Address from "../models/Address.js";
 import StudentParentLink from "../models/StudentParentLink.js";
 import UserClassAssignment from "../models/UserClassAssignment.js";
 import TeacherSubjectAssignment from "../models/TeacherSubjectAssignment.js";
@@ -17,58 +18,86 @@ export const listUsers = async (req, res) => {
       filter.role = req.query.role;
     }
     
+    // Use lean() for faster read-only queries
     const users = await User.find(filter)
+      .lean()
       .sort({ createdAt: -1 });
 
-    // Get accounts and class assignments for each user
-    const usersWithAccounts = await Promise.all(
-      users.map(async (user) => {
-        const accounts = await Account.find({ 
-          user_id: user._id, 
-          is_deleted: { $ne: true } 
-        }).select('username email phone is_active createdAt');
+    // Batch fetch all related data at once
+    const userIds = users.map(u => u._id);
+    
+    // Fetch all accounts, class assignments, and subject assignments in parallel
+    const [allAccounts, allClassAssignments, allSubjectAssignments] = await Promise.all([
+      Account.find({ 
+        user_id: { $in: userIds }, 
+        is_deleted: { $ne: true } 
+      }).select('username email phone is_active createdAt user_id').lean(),
+      UserClassAssignment.find({ 
+        user_id: { $in: userIds } 
+      }).populate('class_id', 'class_name grade section').lean(),
+      TeacherSubjectAssignment.find({ 
+        user_id: { $in: userIds } 
+      }).populate('subject_id', 'subject_name')
+        .populate('class_id', 'class_name grade section').lean()
+    ]);
 
-        // Get class assignments for this user
-        const classAssignments = await UserClassAssignment.find({ 
-          user_id: user._id 
-        }).populate('class_id', 'class_name grade section');
+    // Create lookup maps for O(1) access
+    const accountsMap = new Map();
+    const classAssignmentsMap = new Map();
+    const subjectAssignmentsMap = new Map();
 
-        // Get subject assignments for teachers
-        let subjectAssignments = [];
-        if (user.role === 'Teacher') {
-          subjectAssignments = await TeacherSubjectAssignment.find({ 
-            user_id: user._id 
-          }).populate('subject_id', 'subject_name')
-            .populate('class_id', 'class_name grade section');
-        }
+    allAccounts.forEach(acc => {
+      const uid = acc.user_id.toString();
+      if (!accountsMap.has(uid)) accountsMap.set(uid, []);
+      accountsMap.get(uid).push(acc);
+    });
 
-        // Get the most recent active account
-        const activeAccount = accounts && accounts.length > 0 
-          ? accounts.find(acc => acc.is_active) || accounts[0]
-          : null;
+    allClassAssignments.forEach(ca => {
+      const uid = ca.user_id.toString();
+      if (!classAssignmentsMap.has(uid)) classAssignmentsMap.set(uid, []);
+      classAssignmentsMap.get(uid).push(ca);
+    });
 
-        return {
-          _id: user._id,
-          name: user.name,
-          nic_number: user.nic_number,
-          role: user.role,
-          gender: user.gender,
-          date_of_birth: user.date_of_birth,
-          profile_picture: user.profile_picture,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-          account: activeAccount, // Single account for backward compatibility
-          accounts: accounts || [], // All accounts
-          totalAccounts: accounts ? accounts.length : 0,
-          class_assignments: classAssignments || [],
-          subject_assignments: subjectAssignments.map(sa => ({
-            subject_name: sa.subject_id?.subject_name,
-            class_name: sa.class_id?.class_name,
-            course_limit: sa.course_limit
-          }))
-        };
-      })
-    );
+    allSubjectAssignments.forEach(sa => {
+      const uid = sa.user_id.toString();
+      if (!subjectAssignmentsMap.has(uid)) subjectAssignmentsMap.set(uid, []);
+      subjectAssignmentsMap.get(uid).push(sa);
+    });
+
+    // Build response efficiently
+    const usersWithAccounts = users.map(user => {
+      const userId = user._id.toString();
+      const accounts = accountsMap.get(userId) || [];
+      const classAssignments = classAssignmentsMap.get(userId) || [];
+      const subjectAssignments = user.role === 'Teacher' 
+        ? (subjectAssignmentsMap.get(userId) || [])
+        : [];
+
+      const activeAccount = accounts.length > 0 
+        ? accounts.find(acc => acc.is_active) || accounts[0]
+        : null;
+
+      return {
+        _id: user._id,
+        name: user.name,
+        nic_number: user.nic_number,
+        role: user.role,
+        gender: user.gender,
+        date_of_birth: user.date_of_birth,
+        profile_picture: user.profile_picture,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        account: activeAccount,
+        accounts: accounts,
+        totalAccounts: accounts.length,
+        class_assignments: classAssignments,
+        subject_assignments: subjectAssignments.map(sa => ({
+          subject_name: sa.subject_id?.subject_name,
+          class_name: sa.class_id?.class_name,
+          course_limit: sa.course_limit
+        }))
+      };
+    });
 
     return res.json({ users: usersWithAccounts });
   } catch (error) {
@@ -84,6 +113,12 @@ export const getUser = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     
     const account = await Account.findOne({ user_id: id }).select("username email phone is_active createdAt updatedAt");
+    
+    // Get address for students and teachers only
+    let address = null;
+    if (user.role === 'Student' || user.role === 'Teacher') {
+      address = await Address.findOne({ user_id: id });
+    }
     
     // Get additional user details based on role
     let additionalData = {};
@@ -102,6 +137,7 @@ export const getUser = async (req, res) => {
     return res.json({ 
       user, 
       account,
+      address,
       additionalData 
     });
   } catch (error) {
@@ -112,7 +148,7 @@ export const getUser = async (req, res) => {
 
 export const createUser = async (req, res) => {
   try {
-    const { name, role, username, email, phone, password, dateOfBirth, gender, profilePicture, nic_number } = req.body;
+    const { name, role, username, email, phone, password, dateOfBirth, gender, profilePicture, nic_number, street, city, postal_code } = req.body;
     
     if (!name || !role || !username || !password || !nic_number) {
       return res.status(400).json({ message: "Missing required fields: name, role, username, password, and NIC number are required" });
@@ -147,6 +183,27 @@ export const createUser = async (req, res) => {
           is_active: true
         });
 
+        // Create address for students and teachers if provided
+        let address = null;
+        if ((existingUserByName.role === 'Student' || existingUserByName.role === 'Teacher') && street && city && postal_code) {
+          // Check if address already exists, update it, otherwise create new
+          const existingAddress = await Address.findOne({ user_id: existingUserByName._id });
+          if (existingAddress) {
+            existingAddress.street = street;
+            existingAddress.city = city;
+            existingAddress.postal_code = postal_code;
+            await existingAddress.save();
+            address = existingAddress;
+          } else {
+            address = await Address.create({
+              user_id: existingUserByName._id,
+              street,
+              city,
+              postal_code
+            });
+          }
+        }
+
         return res.status(201).json({ 
           message: "User created successfully", 
           user: existingUserByName, 
@@ -155,7 +212,8 @@ export const createUser = async (req, res) => {
             email: account.email, 
             phone: account.phone, 
             is_active: account.is_active 
-          }
+          },
+          address: address
         });
       } else {
         // Different NIC, create new user
@@ -202,6 +260,17 @@ export const createUser = async (req, res) => {
           is_active: true
         });
 
+        // Create address for students and teachers if provided
+        let address = null;
+        if ((user.role === 'Student' || user.role === 'Teacher') && street && city && postal_code) {
+          address = await Address.create({
+            user_id: user._id,
+            street,
+            city,
+            postal_code
+          });
+        }
+
         return res.status(201).json({ 
           message: "User created successfully", 
           user, 
@@ -210,7 +279,8 @@ export const createUser = async (req, res) => {
             email: account.email, 
             phone: account.phone, 
             is_active: account.is_active 
-          }
+          },
+          address: address
         });
       }
     } else {
@@ -259,6 +329,17 @@ export const createUser = async (req, res) => {
       is_active: true
     });
 
+    // Create address for students and teachers if provided
+    let address = null;
+    if ((user.role === 'Student' || user.role === 'Teacher') && street && city && postal_code) {
+      address = await Address.create({
+        user_id: user._id,
+        street,
+        city,
+        postal_code
+      });
+    }
+
     return res.status(201).json({ 
       message: "User created successfully", 
       user, 
@@ -267,7 +348,8 @@ export const createUser = async (req, res) => {
         email: account.email, 
         phone: account.phone, 
         is_active: account.is_active 
-      } 
+      },
+      address: address
     });
     }
   } catch (error) {

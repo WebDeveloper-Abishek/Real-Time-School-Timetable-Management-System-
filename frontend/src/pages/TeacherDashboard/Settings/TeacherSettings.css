@@ -1,0 +1,53 @@
+.teachersettings-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.teachersettings-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+}
+
+.teachersettings-card h3 {
+  margin: 0 0 2rem;
+  color: #1e293b;
+  font-size: 1.5rem;
+}
+
+.teachersettings-section {
+  margin-bottom: 2rem;
+}
+
+.teachersettings-section label {
+  display: block;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.teachersettings-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.teachersettings-option input {
+  width: 18px;
+  height: 18px;
+}
+
+.teachersettings-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+

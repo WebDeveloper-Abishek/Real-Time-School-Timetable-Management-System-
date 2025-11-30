@@ -1,0 +1,59 @@
+.parentattendance-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.parentattendance-table-container {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.parentattendance-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.parentattendance-table thead {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.parentattendance-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.parentattendance-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.parentattendance-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.parentattendance-table td {
+  padding: 1rem;
+  color: #1e293b;
+}
+
+.parentattendance-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.parentattendance-status-present {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.parentattendance-status-absent {
+  background: #fee2e2;
+  color: #991b1b;
+}
+

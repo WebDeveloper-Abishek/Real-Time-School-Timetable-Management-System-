@@ -29,14 +29,58 @@ const AdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // TODO: Replace with actual API calls
-      // For now, using mock data
+      setLoading(true);
+      
+      // Fetch all data in parallel
+      const [usersRes, leavesRes, replacementsRes] = await Promise.all([
+        fetch('/api/admin/users').catch(() => ({ ok: false })),
+        fetch('/api/admin/leaves').catch(() => ({ ok: false })),
+        fetch('/api/admin/replacements').catch(() => ({ ok: false }))
+      ]);
+
+      // Process users to get total students
+      let totalStudents = 0;
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        if (usersData && usersData.users && Array.isArray(usersData.users)) {
+          totalStudents = usersData.users.filter(u => u.role === 'Student').length;
+        } else if (Array.isArray(usersData)) {
+          totalStudents = usersData.filter(u => u.role === 'Student').length;
+        }
+      }
+
+      // Process leaves to get pending leaves
+      let pendingLeaves = 0;
+      if (leavesRes.ok) {
+        const leavesData = await leavesRes.json();
+        if (leavesData && Array.isArray(leavesData)) {
+          pendingLeaves = leavesData.filter(leave => {
+            const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
+            return status === 'PENDING';
+          }).length;
+        }
+      }
+
+      // Process replacements to get active replacements
+      let activeReplacements = 0;
+      if (replacementsRes.ok) {
+        const replacementsData = await replacementsRes.json();
+        if (replacementsData && Array.isArray(replacementsData)) {
+          activeReplacements = replacementsData.filter(req => 
+            req.status === 'ACCEPTED' || req.status === 'accepted' || req.status === 'PENDING' || req.status === 'pending'
+          ).length;
+        }
+      }
+
+      // Calculate today's attendance (simplified - you may want to fetch actual attendance data)
+      const todayAttendance = 94.2; // This would need actual attendance API call
+
       setDashboardData({
         stats: {
-          totalStudents: 1247,
-          todayAttendance: 94.2,
-          pendingLeaves: 5,
-          activeReplacements: 2
+          totalStudents,
+          todayAttendance,
+          pendingLeaves,
+          activeReplacements
         },
         courseProgress: [
           { subject: 'Mathematics', grade: '8A', completed: 15, total: 23, percentage: 65, teacher: 'Ms. Sarah Johnson' },
@@ -102,12 +146,24 @@ const AdminDashboard = () => {
           { id: 3, title: 'Science Fair', date: '2024-02-25', type: 'Academic' },
           { id: 4, title: 'Staff Training Workshop', date: '2024-03-01', type: 'Professional Development' }
         ],
-        pendingLeaves: [
-          { id: 1, teacher: 'John Smith', subject: 'Mathematics', date: '2024-02-10', reason: 'Personal' },
-          { id: 2, teacher: 'Sarah Johnson', subject: 'English', date: '2024-02-12', reason: 'Medical' },
-          { id: 3, teacher: 'Michael Chen', subject: 'Science', date: '2024-02-14', reason: 'Family Event' },
-          { id: 4, teacher: 'Amanda Lee', subject: 'History', date: '2024-02-16', reason: 'Conference' }
-        ]
+        pendingLeaves: (() => {
+          if (leavesRes.ok && leavesData && Array.isArray(leavesData)) {
+            return leavesData
+              .filter(leave => {
+                const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
+                return status === 'PENDING';
+              })
+              .slice(0, 4) // Limit to 4 most recent
+              .map(leave => ({
+                id: leave._id,
+                teacher: leave.user_id?.name || 'Unknown Teacher',
+                subject: 'N/A', // You may want to fetch subject from timetable
+                date: new Date(leave.start_date).toISOString().split('T')[0],
+                reason: leave.reason || 'Not specified'
+              }));
+          }
+          return [];
+        })()
       });
       setLoading(false);
     } catch (error) {

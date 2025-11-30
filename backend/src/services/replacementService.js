@@ -23,10 +23,10 @@ export const processLeaveRequest = async (leaveId) => {
     
     // Get the leave record
     const leave = await LeaveRecord.findById(leaveId)
-      .populate('teacher_id', 'name email')
+      .populate('user_id', 'name email role')
       .populate('class_id', 'class_name grade section');
     
-    if (!leave || leave.status !== 'Approved') {
+    if (!leave || !leave.approved) {
       throw new Error('Leave not found or not approved');
     }
 
@@ -68,18 +68,25 @@ export const processLeaveRequest = async (leaveId) => {
  * Handles multi-day leaves and calculates affected days based on start_date and end_date
  */
 async function getAffectedPeriods(leave) {
-  const { teacher_id, start_date, end_date, leave_type, half_day_type } = leave;
+  // LeaveRecord uses user_id, not teacher_id
+  const teacherId = leave.user_id?._id || leave.user_id || leave.teacher_id?._id || leave.teacher_id;
+  const { start_date, end_date, leave_type, half_day_type } = leave;
+  
+  if (!teacherId) {
+    console.log(`⚠️ No teacher ID found in leave record`);
+    return [];
+  }
   
   // Get all periods for this teacher across all classes
   const teacherPeriods = await ClassTimetable.find({
-    teacher_id: teacher_id
+    teacher_id: teacherId
   })
     .populate('slot_id')
     .populate('subject_id', 'subject_name')
     .populate('class_id', 'class_name grade section');
 
   if (teacherPeriods.length === 0) {
-    console.log(`⚠️ No periods found for teacher ${teacher_id}`);
+    console.log(`⚠️ No periods found for teacher ${teacherId}`);
     return [];
   }
 
@@ -167,7 +174,7 @@ async function findReplacementTeacher(period, leave) {
   const subjectId = typeof period.subject_id === 'object' ? period.subject_id._id : period.subject_id;
   const slotId = typeof period.slot_id === 'object' ? period.slot_id._id : period.slot_id;
   const dayOfWeek = period.day_of_week;
-  const originalTeacherId = leave.teacher_id._id || leave.teacher_id;
+  const originalTeacherId = leave.user_id?._id || leave.user_id || leave.teacher_id?._id || leave.teacher_id;
   
   const className = period.class_id?.class_name || 'Unknown';
   const subjectName = period.subject_id?.subject_name || 'Unknown';
@@ -390,8 +397,9 @@ async function selectBestReplacement(teachers, subjectId, classId) {
  * Send replacement prompts to teachers
  */
 async function sendReplacementPrompts(replacements, leave) {
-  const teacherId = typeof leave.teacher_id === 'object' ? leave.teacher_id._id : leave.teacher_id;
-  const teacherName = leave.teacher_id?.name || 'Teacher';
+  // LeaveRecord uses user_id, not teacher_id
+  const teacherId = leave.user_id?._id || leave.user_id || (typeof leave.teacher_id === 'object' ? leave.teacher_id._id : leave.teacher_id);
+  const teacherName = leave.user_id?.name || leave.teacher_id?.name || 'Teacher';
   
   for (const replacement of replacements) {
     const period = replacement.period;
@@ -404,7 +412,7 @@ async function sendReplacementPrompts(replacements, leave) {
     
     // Create replacement assignment record
     const replacementAssignment = await ReplacementAssignment.create({
-      original_teacher_id: teacherId,
+      original_teacher_id: teacherId, // This is correct - ReplacementAssignment uses original_teacher_id
       replacement_teacher_id: replacement.teacher._id,
       class_id: classId,
       subject_id: subjectId,
@@ -416,10 +424,12 @@ async function sendReplacementPrompts(replacements, leave) {
     // Create notification for the teacher
     await Notification.create({
       user_id: replacement.teacher._id,
-      type: 'replacement_request',
+      type: 'info', // Using valid enum value
+      category: 'academic',
       title: 'Replacement Request',
-      message: `You are requested to replace ${teacherName} for ${className} - ${subjectName} on ${period.day_of_week} (Period ${slotNumber})`,
-      data: {
+      body: `You are requested to replace ${teacherName} for ${className} - ${subjectName} on ${period.day_of_week} (Period ${slotNumber})`,
+      priority: replacement.priority === 'high' ? 'high' : replacement.priority === 'urgent' ? 'urgent' : 'medium',
+      action_data: {
         leave_id: leave._id,
         replacement_assignment_id: replacementAssignment._id,
         period_id: period._id,
@@ -427,10 +437,13 @@ async function sendReplacementPrompts(replacements, leave) {
         subject_id: subjectId,
         slot_id: slotId,
         day_of_week: period.day_of_week,
+        slot_number: slotNumber,
         priority: replacement.priority,
-        reason: replacement.reason
+        reason: replacement.reason,
+        class_name: className,
+        subject_name: subjectName
       },
-      is_read: false
+      read_status: false
     });
 
     console.log(`📤 Sent replacement prompt to ${replacement.teacher.name} for ${className} - ${subjectName}`);
@@ -582,7 +595,7 @@ export const declineReplacement = async (notificationId, teacherId, reason) => {
 
     // Get leave and period details
     const leave = await LeaveRecord.findById(leave_id)
-      .populate('teacher_id', 'name');
+      .populate('user_id', 'name');
     
     if (!leave) {
       throw new Error('Leave record not found');

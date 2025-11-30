@@ -1,0 +1,70 @@
+.teacheraccontainer {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.teacherattendance-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.teacherattendance-header {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  padding: 1.5rem;
+}
+
+.teacherattendance-header h3 {
+  margin: 0 0 0.5rem;
+}
+
+.teacherattendance-list {
+  padding: 1.5rem;
+}
+
+.teacherattendance-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.teacherattendance-toggle {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.teacherattendance-toggle.present {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.teacherattendance-toggle.absent {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.teacherattendance-footer {
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+}
+
+.teacherattendance-save {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+

@@ -225,6 +225,9 @@ export const classAPI = {
     body: JSON.stringify({ class_id: classId, teacher_id: teacherId }),
   }),
 
+  // Get all teacher assignments
+  getAllTeacherAssignments: () => apiRequest('/admin/classes/teacher-assignments'),
+
   // Remove teacher from class
   removeTeacherFromClass: (classId, teacherId) => apiRequest('/admin/classes/remove-teacher', {
     method: 'DELETE',
@@ -232,13 +235,14 @@ export const classAPI = {
   }),
 
   // Assign teacher to subject
-  assignTeacherToSubject: (teacherId, subjectId, classId, courseLimit) => apiRequest('/admin/classes/assign-subject', {
+  assignTeacherToSubject: (teacherId, subjectId, classId, courseLimit, religionType = null) => apiRequest('/admin/classes/assign-subject', {
     method: 'POST',
     body: JSON.stringify({ 
       teacher_id: teacherId, 
       subject_id: subjectId, 
       class_id: classId, 
-      course_limit: courseLimit 
+      course_limit: courseLimit,
+      religion_type: religionType // Optional: for tracking religion type when using Religion subject
     }),
   }),
 
@@ -316,6 +320,35 @@ export const subjectAPI = {
     if (classId) params.append('class_id', classId);
     return apiRequest(`/admin/subjects/available-teachers?${params.toString()}`);
   },
+
+  // Get subjects for a specific class
+  getSubjectsForClass: (classId) => apiRequest(`/admin/classes/${classId}/subjects`),
+
+  // Assign subjects to class with course limits
+  assignSubjectsToClass: (classId, subjectAssignments) => apiRequest('/admin/classes/assign-subjects', {
+    method: 'POST',
+    body: JSON.stringify({
+      class_id: classId,
+      subject_assignments: subjectAssignments
+    }),
+  }),
+
+  // Update course limit for class-subject assignment
+  updateClassSubjectCourseLimit: (assignmentId, courseLimit) => apiRequest('/admin/classes/subject-assignments/update', {
+    method: 'PUT',
+    body: JSON.stringify({
+      assignment_id: assignmentId,
+      course_limit: courseLimit
+    }),
+  }),
+
+  // Remove subject from class
+  removeSubjectFromClass: (assignmentId) => apiRequest('/admin/classes/subject-assignments/remove', {
+    method: 'POST',
+    body: JSON.stringify({
+      assignment_id: assignmentId
+    }),
+  }),
 };
 
 // Auth API

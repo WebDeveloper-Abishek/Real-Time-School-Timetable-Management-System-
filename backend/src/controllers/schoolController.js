@@ -51,11 +51,12 @@ export const listSubjects = async (_req, res) => {
         const assignments = await TeacherSubjectAssignment.find({ subject_id: subject._id })
           .populate('user_id', 'name role')
           .populate('class_id', 'class_name grade section term_id')
-          .populate('subject_id', 'subject_name');
+          .populate('subject_id', 'subject_name')
+          .lean(); // Convert to plain objects for better JSON serialization
         
         return {
           ...subject.toObject(),
-          assignments: assignments
+          assignments: assignments || []
         };
       })
     );

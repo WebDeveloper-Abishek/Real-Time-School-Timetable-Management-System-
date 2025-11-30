@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Account from "../models/Account.js";
+import Address from "../models/Address.js";
 import generateToken from "../utils/generateToken.js";
 import jwt from "jsonwebtoken";
 import { createProfileUpdateNotification, createUserCreatedNotification } from "../services/notificationService.js";
@@ -194,6 +195,12 @@ export const getProfile = async (req, res) => {
       return res.status(404).json({ message: "Account not found" });
     }
 
+    // Get address for students and teachers only
+    let address = null;
+    if (user.role === 'Student' || user.role === 'Teacher') {
+      address = await Address.findOne({ user_id: userId });
+    }
+
     const profileData = {
       user: {
         id: user._id,
@@ -206,7 +213,8 @@ export const getProfile = async (req, res) => {
         username: account.username,
         email: account.email,
         phone: account.phone
-      }
+      },
+      address: address
     };
     
     console.log('Get profile - Returning data:', profileData);
@@ -242,7 +250,10 @@ export const updateProfile = async (req, res) => {
       email, 
       phone, 
       currentPassword, 
-      newPassword 
+      newPassword,
+      street,
+      city,
+      postal_code
     } = req.body;
 
     // Find user and account
@@ -311,7 +322,34 @@ export const updateProfile = async (req, res) => {
     await user.save();
     await account.save();
     
+    // Update address for teachers (and students if needed) if provided
+    if ((user.role === 'Teacher' || user.role === 'Student') && (street || city || postal_code)) {
+      let address = await Address.findOne({ user_id: userId });
+      
+      if (address) {
+        // Update existing address
+        if (street) address.street = street;
+        if (city) address.city = city;
+        if (postal_code) address.postal_code = postal_code;
+        await address.save();
+      } else if (street && city && postal_code) {
+        // Create new address if all fields are provided
+        address = await Address.create({
+          user_id: userId,
+          street,
+          city,
+          postal_code
+        });
+      }
+    }
+    
     console.log('Update profile - Changes saved successfully');
+
+    // Get updated address for response
+    let address = null;
+    if (user.role === 'Teacher' || user.role === 'Student') {
+      address = await Address.findOne({ user_id: userId });
+    }
 
     // Create notifications for profile update
     try {
@@ -324,6 +362,7 @@ export const updateProfile = async (req, res) => {
       if (nic_number) updatedFields.nic_number = nic_number;
       if (date_of_birth) updatedFields.date_of_birth = date_of_birth;
       if (gender) updatedFields.gender = gender;
+      if (street || city || postal_code) updatedFields.address = 'updated';
 
       await createProfileUpdateNotification(userId, updatedFields);
       console.log('Update profile - Notifications created successfully');
@@ -345,7 +384,8 @@ export const updateProfile = async (req, res) => {
         username: account.username,
         email: account.email,
         phone: account.phone
-      }
+      },
+      address: address
     };
     
     console.log('Update profile - Returning response:', responseData);

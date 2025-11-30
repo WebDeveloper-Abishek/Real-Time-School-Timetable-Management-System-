@@ -31,10 +31,33 @@ const TeacherLeaves = () => {
 
   const teacherleavesFetchTerms = async () => {
     try {
-      const r = await fetch('/api/admin/terms');
+      const r = await fetch('http://localhost:5000/api/admin/terms');
+      if (!r.ok) throw new Error('Failed to fetch terms');
       const data = await r.json();
-      setTeacherleavesTerms(data || []);
+      const terms = Array.isArray(data) ? data : [];
+      setTeacherleavesTerms(terms);
+      
+      // Automatically set the current active term
+      const currentTerm = terms.find(term => term.is_active === true);
+      if (currentTerm) {
+        setTeacherleavesForm(prev => ({
+          ...prev,
+          term_id: currentTerm._id
+        }));
+      } else if (terms.length > 0) {
+        // If no active term, use the most recent one
+        const sortedTerms = [...terms].sort((a, b) => {
+          const dateA = new Date(a.start_date || a.createdAt || 0);
+          const dateB = new Date(b.start_date || b.createdAt || 0);
+          return dateB - dateA;
+        });
+        setTeacherleavesForm(prev => ({
+          ...prev,
+          term_id: sortedTerms[0]._id
+        }));
+      }
     } catch (error) {
+      console.error('Error fetching terms:', error);
       teacherleavesAddAlert('Error fetching terms', 'error');
     }
   };
@@ -42,11 +65,22 @@ const TeacherLeaves = () => {
   const teacherleavesFetchLeaves = async () => {
     try {
       setTeacherleavesLoading(true);
-      const r = await fetch(`/api/teacher/leaves?user_id=${user.id}`);
+      const userId = user.id || user._id;
+      const r = await fetch(`http://localhost:5000/api/teacher/leaves?user_id=${userId}`);
+      if (!r.ok) throw new Error('Failed to fetch leaves');
       const data = await r.json();
-      setTeacherleavesList(data || []);
+      const leaves = Array.isArray(data) ? data : [];
+      // Sort by creation date (newest first)
+      leaves.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.createdAt || b.created_at || 0);
+        return dateB - dateA;
+      });
+      setTeacherleavesList(leaves);
     } catch (error) {
-      teacherleavesAddAlert('Error fetching leaves', 'error');
+      console.error('Error fetching leaves:', error);
+      teacherleavesAddAlert('Error fetching leaves: ' + (error.message || 'Unknown error'), 'error');
+      setTeacherleavesList([]);
     } finally {
       setTeacherleavesLoading(false);
     }
@@ -65,13 +99,29 @@ const TeacherLeaves = () => {
       return;
     }
 
+    // Ensure term_id is set (should already be set automatically, but double-check)
+    if (!teacherleavesForm.term_id) {
+      const currentTerm = adminleavesTerms.find(term => term.is_active === true);
+      if (currentTerm) {
+        setTeacherleavesForm(prev => ({ ...prev, term_id: currentTerm._id }));
+      } else {
+        teacherleavesAddAlert('No active term found. Please contact administrator.', 'error');
+        return;
+      }
+    }
+
     try {
       setTeacherleavesLoading(true);
-      const response = await fetch('/api/teacher/leaves', {
+      const userId = user.id || user._id;
+      const response = await fetch('http://localhost:5000/api/teacher/leaves', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
         body: JSON.stringify({
-          user_id: user.id,
+          user_id: userId,
+          term_id: teacherleavesForm.term_id, // Always include term_id
           ...teacherleavesForm
         })
       });
@@ -213,14 +263,14 @@ const TeacherLeaves = () => {
         <div className="teacherleaves-header">
           <div className="teacherleaves-header-left">
             <h1 className="teacherleaves-page-title">Leave Management</h1>
-            <p className="teacherleaves-page-subtitle">Request and manage your leave applications</p>
+            <p className="teacherleaves-page-subtitle">Apply for leave and view your leave request history</p>
           </div>
           <div className="teacherleaves-header-right">
             <button
               className="teacherleaves-btn teacherleaves-btn-primary"
               onClick={() => setTeacherleavesShowModal(true)}
             >
-              ➕ Request Leave
+              ➕ Apply New Request
             </button>
           </div>
         </div>
@@ -286,7 +336,8 @@ const TeacherLeaves = () => {
         {/* Leave Requests List */}
         <div className="teacherleaves-list-section">
           <div className="teacherleaves-list-header">
-            <h2 className="teacherleaves-list-title">My Leave Requests</h2>
+            <h2 className="teacherleaves-list-title">My Requests</h2>
+            <p className="teacherleaves-list-subtitle">All your leave requests are listed below</p>
           </div>
           
           {teacherleavesLoading ? (

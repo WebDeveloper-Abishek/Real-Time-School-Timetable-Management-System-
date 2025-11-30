@@ -1,0 +1,84 @@
+.studentcounselling-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.studentcounselling-header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.studentcounselling-btn-primary {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.studentcounselling-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.studentcounselling-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.studentcounselling-card-header {
+  background: #f8fafc;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.studentcounselling-card-header h3 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.studentcounselling-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.studentcounselling-status-scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.studentcounselling-status-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.studentcounselling-card-body {
+  padding: 1.5rem;
+}
+
+.studentcounselling-info {
+  display: flex;
+  gap: 2rem;
+  color: #64748b;
+}
+
+.studentcounselling-loading,
+.studentcounselling-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+

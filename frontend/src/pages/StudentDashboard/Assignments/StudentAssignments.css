@@ -1,0 +1,137 @@
+.studentassignments-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.studentassignments-header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.studentassignments-filters {
+  display: flex;
+  gap: 1rem;
+}
+
+.studentassignments-filter,
+.studentassignments-filter-active {
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.studentassignments-filter {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.studentassignments-filter-active {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.studentassignments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.studentassignments-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.studentassignments-card-header {
+  background: #f8fafc;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.studentassignments-card-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1e293b;
+}
+
+.studentassignments-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.studentassignments-status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.studentassignments-status-submitted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.studentassignments-status-overdue {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.studentassignments-card-body {
+  padding: 1.5rem;
+}
+
+.studentassignments-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+}
+
+.studentassignments-label {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.studentassignments-value {
+  color: #1e293b;
+}
+
+.studentassignments-description {
+  margin: 1rem 0 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.studentassignments-card-footer {
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+}
+
+.studentassignments-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.studentassignments-loading,
+.studentassignments-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+

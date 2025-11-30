@@ -47,9 +47,9 @@ const AdminTimetable = () => {
 
   const admintimetableFetchTerms = async () => {
     try {
-      const r = await fetch('/api/admin/terms');
+      const r = await fetch('http://localhost:5000/api/admin/terms');
       const data = await r.json();
-      setAdmintimetableTerms(data || []);
+      setAdmintimetableTerms(Array.isArray(data) ? data : []);
     } catch (error) {
       admintimetableAddAlert('Error fetching terms', 'error');
     }
@@ -57,9 +57,22 @@ const AdminTimetable = () => {
 
   const admintimetableFetchClasses = async (termId) => {
     try {
-      const r = await fetch(`/api/admin/classes?term_id=${termId}`);
+      const r = await fetch(`http://localhost:5000/api/admin/classes?term_id=${termId}`);
       const data = await r.json();
-      setAdmintimetableClasses(data || []);
+      if (Array.isArray(data)) {
+        // Sort classes by grade (ascending) then by section (ascending)
+        const sortedClasses = [...data].sort((a, b) => {
+          const gradeA = parseInt(a.grade) || 0;
+          const gradeB = parseInt(b.grade) || 0;
+          if (gradeA !== gradeB) {
+            return gradeA - gradeB;
+          }
+          return (a.section || '').localeCompare(b.section || '');
+        });
+        setAdmintimetableClasses(sortedClasses);
+      } else {
+        setAdmintimetableClasses([]);
+      }
     } catch (error) {
       admintimetableAddAlert('Error fetching classes', 'error');
     }
@@ -67,9 +80,9 @@ const AdminTimetable = () => {
 
   const admintimetableFetchSubjects = async () => {
     try {
-      const r = await fetch('/api/admin/subjects');
+      const r = await fetch('http://localhost:5000/api/admin/subjects');
       const data = await r.json();
-      setAdmintimetableSubjects(data || []);
+      setAdmintimetableSubjects(Array.isArray(data) ? data : []);
     } catch (error) {
       admintimetableAddAlert('Error fetching subjects', 'error');
     }
@@ -77,10 +90,10 @@ const AdminTimetable = () => {
 
   const admintimetableFetchTeachers = async () => {
     try {
-      const r = await fetch('/api/admin/users?role=Teacher');
+      const r = await fetch('http://localhost:5000/api/admin/users?role=Teacher');
       const data = await r.json();
-      const teachers = data.users || data || [];
-      setAdmintimetableTeachers(teachers.filter(t => t.role === 'Teacher'));
+      const teachers = Array.isArray(data.users) ? data.users : (Array.isArray(data) ? data : []);
+      setAdmintimetableTeachers(teachers.filter(t => t && t.role === 'Teacher'));
     } catch (error) {
       admintimetableAddAlert('Error fetching teachers', 'error');
     }
@@ -89,7 +102,7 @@ const AdminTimetable = () => {
   const admintimetableFetchSlots = async (termId, classId, day) => {
     try {
       setAdmintimetableLoading(true);
-      const r = await fetch(`/api/admin/slots?term_id=${termId}&class_id=${classId}&day_of_week=${day}`);
+      const r = await fetch(`http://localhost:5000/api/admin/slots?term_id=${termId}&class_id=${classId}&day_of_week=${day}`);
       const data = await r.json();
       setAdmintimetableSlots(data || []);
     } catch (error) {
@@ -135,7 +148,7 @@ const AdminTimetable = () => {
         day_of_week: admintimetableSelectedDay
       };
       
-      await fetch('/api/admin/slots', {
+      await fetch('http://localhost:5000/api/admin/slots', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -146,6 +159,60 @@ const AdminTimetable = () => {
       await admintimetableFetchSlots(admintimetableSelectedTerm, admintimetableSelectedClass, admintimetableSelectedDay);
     } catch (error) {
       admintimetableAddAlert('Error adding timetable slot', 'error');
+    }
+  };
+
+  const admintimetableGenerateAllTimetables = async () => {
+    if (!admintimetableSelectedTerm) {
+      admintimetableAddAlert('Please select a term first', 'error');
+      return;
+    }
+
+    const term = admintimetableTerms.find(t => t._id === admintimetableSelectedTerm);
+    const termLabel = term ? `Term ${term.term_number}` : 'this term';
+
+    if (!window.confirm(`Generate AI-powered timetables for ALL classes in ${termLabel}? This will create timetables for all classes based on course limits and teacher availability. This may take a few minutes.`)) {
+      return;
+    }
+
+    try {
+      setAdmintimetableGenerating(true);
+      admintimetableAddAlert('🚀 Generating timetables for all classes... This may take a few minutes.', 'info');
+      
+      // Call AI generation endpoint for all classes
+      const response = await fetch('http://localhost:5000/api/admin/timetable/generate-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          term_id: admintimetableSelectedTerm
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const successCount = result.results?.success?.length || 0;
+        const failedCount = result.results?.failed?.length || 0;
+        
+        if (failedCount === 0) {
+          admintimetableAddAlert(`✅ Successfully generated timetables for all ${successCount} classes! ✨`, 'success');
+        } else {
+          admintimetableAddAlert(`⚠️ Generated timetables for ${successCount} classes. ${failedCount} classes failed. Check console for details.`, 'warning');
+        }
+        
+        // Refresh classes list and current view if a class is selected
+        await admintimetableFetchClasses(admintimetableSelectedTerm);
+        if (admintimetableSelectedClass) {
+          await admintimetableFetchSlots(admintimetableSelectedTerm, admintimetableSelectedClass, admintimetableSelectedDay);
+        }
+      } else {
+        const error = await response.json();
+        admintimetableAddAlert('Error generating timetables: ' + (error.message || 'Unknown error'), 'error');
+      }
+    } catch (error) {
+      console.error('Error generating all timetables:', error);
+      admintimetableAddAlert('Error generating timetables: ' + (error.message || 'Unknown error'), 'error');
+    } finally {
+      setAdmintimetableGenerating(false);
     }
   };
 
@@ -164,7 +231,7 @@ const AdminTimetable = () => {
       admintimetableAddAlert('Generating timetable using AI algorithm...', 'info');
       
       // Call AI generation endpoint
-      const response = await fetch('/api/admin/timetable/generate', {
+      const response = await fetch('http://localhost:5000/api/admin/timetable/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -178,10 +245,11 @@ const AdminTimetable = () => {
         await admintimetableFetchSlots(admintimetableSelectedTerm, admintimetableSelectedClass, admintimetableSelectedDay);
       } else {
         const error = await response.json();
-        admintimetableAddAlert('Error generating timetable: ' + error.message, 'error');
+        admintimetableAddAlert('Error generating timetable: ' + (error.message || 'Unknown error'), 'error');
       }
     } catch (error) {
-      admintimetableAddAlert('Error generating timetable', 'error');
+      console.error('Error generating timetable:', error);
+      admintimetableAddAlert('Error generating timetable: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setAdmintimetableGenerating(false);
     }
@@ -228,6 +296,14 @@ const AdminTimetable = () => {
             <p className="admintimetable-page-subtitle">AI-powered automated timetable generation based on course limits</p>
           </div>
           <div className="admintimetable-header-right">
+            <button
+              className="admintimetable-btn admintimetable-btn-generate-all"
+              onClick={admintimetableGenerateAllTimetables}
+              disabled={!admintimetableSelectedTerm || admintimetableGenerating}
+              style={{ marginRight: '10px' }}
+            >
+              {admintimetableGenerating ? '⚡ Generating All...' : '🚀 Generate All Timetables'}
+            </button>
             <button
               className="admintimetable-btn admintimetable-btn-generate"
               onClick={admintimetableGenerateTimetable}

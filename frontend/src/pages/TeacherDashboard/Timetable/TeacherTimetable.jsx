@@ -3,6 +3,7 @@ import DashboardLayout from '../../../Components/DashboardLayout/DashboardLayout
 import './TeacherTimetable.css';
 
 const TeacherTimetable = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [teachertimetableTimetable, setTeachertimetableTimetable] = useState([]);
   const [teachertimetableLoading, setTeachertimetableLoading] = useState(false);
   const [teachertimetableTeacherId, setTeachertimetableTeacherId] = useState('');
@@ -19,11 +20,15 @@ const TeacherTimetable = () => {
     
     try {
       setTeachertimetableLoading(true);
-      const response = await fetch(`/api/teacher/timetable?teacher_id=${teachertimetableTeacherId}`);
+      const response = await fetch(`http://localhost:5000/api/admin/teacher/timetable?teacher_id=${teachertimetableTeacherId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch timetable');
+      }
       const data = await response.json();
-      setTeachertimetableTimetable(data.timetable || []);
+      setTeachertimetableTimetable(Array.isArray(data.timetable) ? data.timetable : []);
     } catch (error) {
-      teachertimetableAddAlert('Error fetching timetable', 'error');
+      console.error('Error fetching timetable:', error);
+      teachertimetableAddAlert('Error fetching timetable: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setTeachertimetableLoading(false);
     }
@@ -103,7 +108,7 @@ const TeacherTimetable = () => {
       pageTitle="My Timetable"
       pageDescription="View your weekly teaching schedule"
       userRole="Teacher"
-      userName="Teacher User"
+      userName={user?.name || "Teacher User"}
       navigationSections={navigationSections}
     >
       <div className="teachertimetable-alerts-container">

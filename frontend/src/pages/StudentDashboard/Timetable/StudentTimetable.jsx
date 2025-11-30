@@ -3,6 +3,7 @@ import DashboardLayout from '../../../Components/DashboardLayout/DashboardLayout
 import './StudentTimetable.css';
 
 const StudentTimetable = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [studenttimetableTimetable, setStudenttimetableTimetable] = useState([]);
   const [studenttimetableLoading, setStudenttimetableLoading] = useState(false);
   const [studenttimetableSelectedClass, setStudenttimetableSelectedClass] = useState('');
@@ -15,32 +16,73 @@ const StudentTimetable = () => {
   };
 
   const studenttimetableFetchTimetable = async () => {
-    if (!studenttimetableSelectedClass) return;
+    const studentId = user.id || user._id;
+    
+    if (!studenttimetableSelectedClass && !studentId) {
+      studenttimetableAddAlert('Please ensure you are assigned to a class', 'error');
+      return;
+    }
     
     try {
       setStudenttimetableLoading(true);
-      const response = await fetch(`/api/student/timetable?class_id=${studenttimetableSelectedClass}`);
+      // Fetch using student_id (preferred) or class_id
+      const url = studentId 
+        ? `http://localhost:5000/api/student/timetable?student_id=${studentId}${studenttimetableSelectedClass ? `&class_id=${studenttimetableSelectedClass}` : ''}`
+        : `http://localhost:5000/api/student/timetable?class_id=${studenttimetableSelectedClass}`;
+      
+      const response = await fetch(url);
       const data = await response.json();
       setStudenttimetableTimetable(data.timetable || []);
+      
+      if (!data.timetable || data.timetable.length === 0) {
+        studenttimetableAddAlert('No timetable found. Please contact your administrator.', 'error');
+      }
     } catch (error) {
-      studenttimetableAddAlert('Error fetching timetable', 'error');
+      console.error('Error fetching timetable:', error);
+      studenttimetableAddAlert('Error fetching timetable: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setStudenttimetableLoading(false);
     }
   };
 
   useEffect(() => {
-    // Get student's class from user data
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.class_id) {
-      setStudenttimetableSelectedClass(user.class_id);
-    }
+    // Get student's class from user data or fetch from API
+    const fetchStudentClass = async () => {
+      try {
+        // Try to get class from user data first
+        if (user.class_id) {
+          setStudenttimetableSelectedClass(user.class_id);
+          return;
+        }
+        
+        // If not in user data, fetch from API using student_id
+        if (user.id || user._id) {
+          const response = await fetch(`http://localhost:5000/api/student/timetable?student_id=${user.id || user._id}`);
+          const data = await response.json();
+          if (data.timetable && data.timetable.length > 0) {
+            // Extract class_id from first timetable entry
+            const classId = data.timetable[0]?.class_id?._id || data.timetable[0]?.class_id;
+            if (classId) {
+              setStudenttimetableSelectedClass(classId);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching student class:', error);
+      }
+    };
+    
+    fetchStudentClass();
   }, []);
 
   useEffect(() => {
-    if (studenttimetableSelectedClass) {
+    // Fetch timetable when class is selected, or fetch directly using student_id
+    const studentId = user.id || user._id;
+    
+    if (studenttimetableSelectedClass || studentId) {
       studenttimetableFetchTimetable();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studenttimetableSelectedClass]);
 
   const studenttimetableGetSlotInfo = (day, slotNumber) => {
@@ -104,7 +146,7 @@ const StudentTimetable = () => {
       pageTitle="My Timetable"
       pageDescription="View your weekly class schedule"
       userRole="Student"
-      userName="Student User"
+      userName={user?.name || "Student User"}
       navigationSections={navigationSections}
     >
       <div className="studenttimetable-alerts-container">

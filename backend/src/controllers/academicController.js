@@ -3,6 +3,8 @@ import AcademicYear from "../models/AcademicYear.js";
 import Term from "../models/Term.js";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+import TeacherSubjectAssignment from "../models/TeacherSubjectAssignment.js";
+import Class from "../models/Class.js";
 
 // Helper function to create academic year notification
 const createAcademicYearNotification = async (yearLabel, adminName, action = 'created') => {
@@ -33,6 +35,85 @@ const createAcademicYearNotification = async (yearLabel, adminName, action = 'cr
     console.log(`Academic year ${action} notification created for ${users.length} users`);
   } catch (error) {
     console.error(`Error creating academic year ${action} notification:`, error);
+  }
+};
+
+// Helper function to carry forward course limits from previous term to new term
+const carryForwardCourseLimits = async (newTermId, previousTermId) => {
+  try {
+    if (!previousTermId) {
+      console.log('No previous term found, skipping course limit carry forward');
+      return;
+    }
+
+    // Get all classes from previous term
+    const previousClasses = await Class.find({ term_id: previousTermId });
+    if (previousClasses.length === 0) {
+      console.log('No classes found in previous term, skipping course limit carry forward');
+      return;
+    }
+
+    // Get all classes from new term
+    const newClasses = await Class.find({ term_id: newTermId });
+    if (newClasses.length === 0) {
+      console.log('No classes found in new term, skipping course limit carry forward');
+      return;
+    }
+
+    // Create a map of class names to new class IDs for matching
+    const newClassMap = new Map();
+    newClasses.forEach(cls => {
+      const key = `${cls.grade}-${cls.section}-${cls.class_name}`;
+      newClassMap.set(key, cls._id);
+    });
+
+    // Get all assignments from previous term
+    const previousAssignments = await TeacherSubjectAssignment.find()
+      .populate({
+        path: 'class_id',
+        match: { term_id: previousTermId }
+      })
+      .populate('subject_id')
+      .populate('user_id');
+
+    // Filter out assignments where class_id is null (populate failed)
+    const validAssignments = previousAssignments.filter(
+      assignment => assignment.class_id && assignment.class_id.term_id?.toString() === previousTermId.toString()
+    );
+
+    let carriedForwardCount = 0;
+
+    // Carry forward each assignment
+    for (const prevAssignment of validAssignments) {
+      const prevClass = prevAssignment.class_id;
+      const key = `${prevClass.grade}-${prevClass.section}-${prevClass.class_name}`;
+      const newClassId = newClassMap.get(key);
+
+      if (newClassId && prevAssignment.subject_id && prevAssignment.user_id) {
+        // Check if assignment already exists in new term
+        const existingAssignment = await TeacherSubjectAssignment.findOne({
+          user_id: prevAssignment.user_id._id,
+          subject_id: prevAssignment.subject_id._id,
+          class_id: newClassId
+        });
+
+        if (!existingAssignment) {
+          // Create new assignment with same course limit
+          await TeacherSubjectAssignment.create({
+            user_id: prevAssignment.user_id._id,
+            subject_id: prevAssignment.subject_id._id,
+            class_id: newClassId,
+            course_limit: prevAssignment.course_limit
+          });
+          carriedForwardCount++;
+        }
+      }
+    }
+
+    console.log(`Carried forward ${carriedForwardCount} course limits from previous term to new term`);
+  } catch (error) {
+    console.error('Error carrying forward course limits:', error);
+    // Don't throw error, just log it - we don't want to fail term creation if this fails
   }
 };
 
@@ -345,6 +426,19 @@ export const createTerm = async (req, res) => {
     // Get admin name from request
     const adminName = req.user?.name || 'System Administrator';
 
+    // If this is not the first term, carry forward course limits from previous term
+    if (parseInt(term_number) > 1) {
+      // Find previous term in the same academic year
+      const previousTerm = await Term.findOne({
+        academic_year_id,
+        term_number: parseInt(term_number) - 1
+      });
+      
+      if (previousTerm) {
+        await carryForwardCourseLimits(term._id, previousTerm._id);
+      }
+    }
+
     // Create notification for term creation
     await createTermNotification(parseInt(term_number), academicYear.year_label, adminName, 'created');
 
@@ -426,7 +520,7 @@ export const getTerm = async (req, res) => {
 export const updateTerm = async (req, res) => {
   try {
     const { id } = req.params;
-    const { term_number, start_date, end_date } = req.body;
+    const { term_number, start_date, end_date, is_active } = req.body;
 
     const term = await Term.findById(id).populate('academic_year_id');
     if (!term) {
@@ -468,12 +562,32 @@ export const updateTerm = async (req, res) => {
       }
     }
 
+    // Store original values
+    const originalIsActive = term.is_active;
+    const originalTermNumber = term.term_number;
+    
     // Update fields
     if (term_number) term.term_number = parseInt(term_number);
     if (start_date) term.start_date = start_date;
     if (end_date) term.end_date = end_date;
+    if (is_active !== undefined) term.is_active = is_active;
+    
+    // Check if is_active is being set to true (term is being activated)
+    const isBeingActivated = is_active === true && !originalIsActive;
 
     await term.save();
+
+    // If term is being activated and it's not the first term, carry forward course limits
+    if (isBeingActivated && term.term_number > 1) {
+      const previousTerm = await Term.findOne({
+        academic_year_id: term.academic_year_id._id,
+        term_number: term.term_number - 1
+      });
+      
+      if (previousTerm) {
+        await carryForwardCourseLimits(term._id, previousTerm._id);
+      }
+    }
 
     // Get admin name from request
     const adminName = req.user?.name || 'System Administrator';

@@ -2,22 +2,25 @@ import mongoose from "mongoose";
 
 const connectDB = async () => {
   try {
-    // Simple fix: disable buffering to prevent timeout errors
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI is not defined in environment variables');
+    }
+
+    // Simple connection options for MongoDB Atlas
     const options = {
-      maxPoolSize: 10, 
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000, 
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
       retryWrites: true,
-      w: 'majority'
+      retryReads: true
     };
 
-    const conn = await mongoose.connect(process.env.MONGODB_URI, options);
-
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    await mongoose.connect(process.env.MONGODB_URI, options);
+    console.log(`✅ MongoDB Connected: ${mongoose.connection.host}`);
     
-    // Handle connection events
+    // Simple event handlers - Mongoose handles reconnection automatically
     mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB Connection Error:', err.message);
+      console.error('❌ MongoDB Error:', err.message);
     });
 
     mongoose.connection.on('disconnected', () => {
@@ -29,10 +32,8 @@ const connectDB = async () => {
     });
 
   } catch (error) {
-    console.error('❌ MongoDB Connection Failed:');
-    console.error('   Error:', error.message);      
-  
-    process.exit(1);
+    console.error('❌ MongoDB Connection Failed:', error.message);
+    throw error;
   }
 };
 

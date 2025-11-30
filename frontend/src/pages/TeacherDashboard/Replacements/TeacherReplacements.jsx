@@ -3,6 +3,7 @@ import DashboardLayout from '../../../Components/DashboardLayout/DashboardLayout
 import './TeacherReplacements.css';
 
 const TeacherReplacements = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [teacherreplacementsRequests, setTeacherreplacementsRequests] = useState([]);
   const [teacherreplacementsAlerts, setTeacherreplacementsAlerts] = useState([]);
   const [teacherreplacementsLoading, setTeacherreplacementsLoading] = useState(false);
@@ -16,33 +17,77 @@ const TeacherReplacements = () => {
   const teacherreplacementsFetchRequests = async () => {
     try {
       setTeacherreplacementsLoading(true);
-      const response = await fetch('/api/teacher/replacement-requests');
+      const userId = user.id || user._id;
+      const token = localStorage.getItem('token') || '';
+      const response = await fetch(`http://localhost:5000/api/teacher/replacement-requests?user_id=${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch replacement requests');
+      }
+      
       const data = await response.json();
       setTeacherreplacementsRequests(data.requests || []);
     } catch (error) {
-      teacherreplacementsAddAlert('Error fetching replacement requests', 'error');
+      console.error('Error fetching replacement requests:', error);
+      teacherreplacementsAddAlert('Error fetching replacement requests: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setTeacherreplacementsLoading(false);
     }
   };
 
-  const teacherreplacementsAcceptRequest = async (requestId) => {
+  const teacherreplacementsAcceptRequest = async (notificationId) => {
     try {
-      await fetch(`/api/replacement/accept/${requestId}`, { method: 'POST' });
-      teacherreplacementsAddAlert('Replacement request accepted', 'success');
-      teacherreplacementsFetchRequests();
+      const token = localStorage.getItem('token') || '';
+      const response = await fetch(`http://localhost:5000/api/teacher/replacement-requests/${notificationId}/accept`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to accept request');
+      }
+      
+      teacherreplacementsAddAlert('Replacement request accepted successfully', 'success');
+      await teacherreplacementsFetchRequests();
     } catch (error) {
-      teacherreplacementsAddAlert('Error accepting request', 'error');
+      console.error('Error accepting request:', error);
+      teacherreplacementsAddAlert('Error accepting request: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 
-  const teacherreplacementsDeclineRequest = async (requestId) => {
+  const teacherreplacementsDeclineRequest = async (notificationId) => {
+    const reason = prompt('Enter reason for declining (optional):');
+    
     try {
-      await fetch(`/api/replacement/decline/${requestId}`, { method: 'POST' });
+      const token = localStorage.getItem('token') || '';
+      const response = await fetch(`http://localhost:5000/api/teacher/replacement-requests/${notificationId}/decline`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: reason || '' })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to decline request');
+      }
+      
       teacherreplacementsAddAlert('Replacement request declined', 'info');
-      teacherreplacementsFetchRequests();
+      await teacherreplacementsFetchRequests();
     } catch (error) {
-      teacherreplacementsAddAlert('Error declining request', 'error');
+      console.error('Error declining request:', error);
+      teacherreplacementsAddAlert('Error declining request: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 
@@ -74,7 +119,7 @@ const TeacherReplacements = () => {
       pageTitle="Replacement Requests"
       pageDescription="Manage your replacement teaching requests"
       userRole="Teacher"
-      userName="Teacher User"
+      userName={user.name || "Teacher User"}
       navigationSections={navigationSections}
     >
       <div className="teacherreplacements-alerts-container">
@@ -119,18 +164,36 @@ const TeacherReplacements = () => {
                 <div className="teacherreplacements-request-details">
                   <div className="teacherreplacements-detail-item">
                     <span className="teacherreplacements-detail-label">Class:</span>
-                    <span className="teacherreplacements-detail-value">{request.data?.class_name || 'Unknown'}</span>
+                    <span className="teacherreplacements-detail-value">{request.class_name || 'Unknown'}</span>
                   </div>
                   <div className="teacherreplacements-detail-item">
                     <span className="teacherreplacements-detail-label">Subject:</span>
-                    <span className="teacherreplacements-detail-value">{request.data?.subject_name || 'Unknown'}</span>
+                    <span className="teacherreplacements-detail-value">{request.subject_name || 'Unknown'}</span>
                   </div>
                   <div className="teacherreplacements-detail-item">
-                    <span className="teacherreplacements-detail-label">Date:</span>
-                    <span className="teacherreplacements-detail-value">
-                      {new Date(request.createdAt).toLocaleDateString()}
-                    </span>
+                    <span className="teacherreplacements-detail-label">Teacher:</span>
+                    <span className="teacherreplacements-detail-value">{request.original_teacher || 'Unknown'}</span>
                   </div>
+                  {request.day_of_week && (
+                    <div className="teacherreplacements-detail-item">
+                      <span className="teacherreplacements-detail-label">Day:</span>
+                      <span className="teacherreplacements-detail-value">{request.day_of_week}</span>
+                    </div>
+                  )}
+                  {request.slot_number && (
+                    <div className="teacherreplacements-detail-item">
+                      <span className="teacherreplacements-detail-label">Period:</span>
+                      <span className="teacherreplacements-detail-value">Period {request.slot_number}</span>
+                    </div>
+                  )}
+                  {request.date && (
+                    <div className="teacherreplacements-detail-item">
+                      <span className="teacherreplacements-detail-label">Date:</span>
+                      <span className="teacherreplacements-detail-value">
+                        {new Date(request.date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="teacherreplacements-request-actions">

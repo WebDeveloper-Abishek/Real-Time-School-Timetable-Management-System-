@@ -8,7 +8,11 @@ import {
   getAvailableTerms,
   getAvailableTeachers,
   assignSubjectToTerm,
-  removeSubjectFromTerm
+  removeSubjectFromTerm,
+  assignSubjectToClasses,
+  assignSubjectsToClass,
+  updateClassSubjectCourseLimit,
+  removeSubjectFromClass
 } from "../controllers/subjectController.js";
 
 const router = express.Router();
@@ -31,5 +35,15 @@ router.get('/subjects/:id/available-terms', getAvailableTerms);
 router.get('/subjects/available-teachers', getAvailableTeachers);
 router.post('/subjects/assign-to-term', assignSubjectToTerm);
 router.post('/subjects/remove-from-term', removeSubjectFromTerm);
+router.post('/subjects/assign-to-classes', assignSubjectToClasses);
+
+// Assign subjects to class with course limits (preparation - actual assignment happens via teacher assignment)
+router.post('/classes/assign-subjects', assignSubjectsToClass);
+
+// Update course limit for class-subject assignment (updates TeacherSubjectAssignment)
+router.put('/classes/subject-assignments/update', updateClassSubjectCourseLimit);
+
+// Remove subject from class
+router.post('/classes/subject-assignments/remove', removeSubjectFromClass);
 
 export default router;

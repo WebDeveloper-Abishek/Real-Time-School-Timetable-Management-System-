@@ -1,0 +1,209 @@
+.unassignedteachers-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.unassignedteachers-alerts {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 1000;
+  max-width: 400px;
+}
+
+.unassignedteachers-alert {
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.unassignedteachers-alert-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.unassignedteachers-alert-error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.unassignedteachers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.unassignedteachers-header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  color: #1e293b;
+}
+
+.unassignedteachers-header p {
+  margin: 0;
+  color: #64748b;
+}
+
+.unassignedteachers-btn-danger {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.unassignedteachers-btn-danger:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.unassignedteachers-btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.unassignedteachers-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.unassignedteachers-stat-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.unassignedteachers-stat-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 2.5rem;
+  color: #3b82f6;
+  font-weight: 700;
+}
+
+.unassignedteachers-stat-card p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.unassignedteachers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.unassignedteachers-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.unassignedteachers-card-header {
+  background: #f8fafc;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.unassignedteachers-card-header h3 {
+  margin: 0 0 0.5rem;
+  color: #1e293b;
+  font-size: 1.25rem;
+}
+
+.unassignedteachers-class-name {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.unassignedteachers-badge-warning {
+  padding: 0.5rem 1rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.unassignedteachers-card-body {
+  padding: 1.5rem;
+}
+
+.unassignedteachers-assign-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.unassignedteachers-assign-form label {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.unassignedteachers-select {
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.unassignedteachers-select:hover:not(:disabled) {
+  border-color: #3b82f6;
+}
+
+.unassignedteachers-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.unassignedteachers-loading-text {
+  color: #64748b;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.unassignedteachers-loading,
+.unassignedteachers-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.unassignedteachers-empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.unassignedteachers-empty h3 {
+  margin: 0 0 0.5rem;
+  color: #1e293b;
+  font-size: 1.5rem;
+}
+
+.unassignedteachers-empty p {
+  margin: 0;
+  color: #64748b;
+}
+

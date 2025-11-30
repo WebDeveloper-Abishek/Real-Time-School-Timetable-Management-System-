@@ -362,22 +362,53 @@ const AdminUsers = () => {
   };
 
   const handleUpdateUser = async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
+    
+    // Clear previous validation errors
+    setValidationErrors({});
+    
+    // Validate required fields
+    const errors = {};
+    
+    if (!formData.name || !formData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (formData.email && !validateEmail(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (formData.phone && !validateSriLankaPhone(formData.phone)) {
+      errors.phone = 'Please enter a valid Sri Lanka phone number';
+    }
+    
+    if (formData.nicNumber && !validateNIC(formData.nicNumber)) {
+      errors.nicNumber = 'Please enter a valid Sri Lanka NIC number';
+    }
+    
     // Validate password strength if password is provided
-    if (formData.password && !passwordStrength.isValid) {
-      addAlert('Please enter a stronger password that meets the requirements.', 'error');
+    if (formData.password) {
+      if (!passwordStrength.isValid) {
+        errors.password = 'Please enter a stronger password that meets the requirements.';
+      }
+    }
+    
+    // If there are validation errors, set them and return
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      addAlert('Please fix the validation errors before submitting.', 'error');
       return;
     }
 
     try {
       const userData = {
-        name: formData.name,
+        name: formData.name.trim(),
         role: formData.role,
-        email: formData.email,
-        phone: formatSriLankaPhone(formData.phone), // Apply formatting on update too
-        date_of_birth: formData.dateOfBirth,
+        email: formData.email || undefined,
+        phone: formData.phone ? formatSriLankaPhone(formData.phone) : undefined,
+        date_of_birth: formData.dateOfBirth || undefined,
         gender: formData.gender,
-        nic_number: formData.nicNumber
+        nic_number: formData.nicNumber ? formData.nicNumber.toUpperCase().replace(/[\s-]/g, '') : undefined
       };
 
       // Add password only if it's provided and valid
@@ -401,11 +432,12 @@ const AdminUsers = () => {
         nicNumber: ''
       });
       setPasswordStrength({ score: 0, feedback: '', isValid: false });
+      setValidationErrors({});
       addAlert('User updated successfully!');
       fetchUsers(); // Refresh the list
     } catch (error) {
       console.error('Error updating user:', error);
-      addAlert('Error updating user: ' + error.message, 'error');
+      addAlert('Error updating user: ' + (error.message || 'Unknown error'), 'error');
     }
   };
 

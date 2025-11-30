@@ -16,12 +16,13 @@ export const getCourseLimits = async (req, res) => {
     }
 
     // Get all classes for this term
-    const classes = await Class.find({ term_id: term_id });
+    const classes = term_id ? await Class.find({ term_id: term_id }) : await Class.find();
+    const classIds = classes.map(c => c._id);
 
-    // Get course limits for this subject
+    // Get course limits for this subject in these classes
     const courseLimits = await TeacherSubjectAssignment.find({
       subject_id: subject_id,
-      term_id: term_id
+      class_id: { $in: classIds }
     }).populate('class_id', 'class_name grade section');
 
     // Create a map of class_id to course_limit
@@ -54,6 +55,18 @@ export const getCourseLimits = async (req, res) => {
   }
 };
 
+// Helper function to calculate maximum course limit per subject for a class
+const calculateMaxCourseLimitPerSubject = async (class_id) => {
+  const subjectCount = await TeacherSubjectAssignment.distinct('subject_id', { class_id });
+  const numberOfSubjects = subjectCount.length;
+  
+  if (numberOfSubjects === 0) {
+    return 160;
+  }
+  
+  return Math.floor(160 / numberOfSubjects);
+};
+
 /**
  * Update course limit for a specific class and subject
  */
@@ -61,44 +74,70 @@ export const updateCourseLimit = async (req, res) => {
   try {
     const { class_id, subject_id, term_id, course_limit } = req.body;
 
-    if (!class_id || !subject_id || !term_id || !course_limit) {
+    if (!class_id || !subject_id || !course_limit) {
       return res.status(400).json({ 
-        message: "Class ID, Subject ID, Term ID, and Course Limit are required" 
+        message: "Class ID, Subject ID, and Course Limit are required" 
       });
     }
 
-    if (course_limit < 1 || course_limit > 50) {
+    if (course_limit < 1) {
       return res.status(400).json({ 
-        message: "Course limit must be between 1 and 50" 
+        message: "Course limit must be at least 1" 
+      });
+    }
+
+    // Calculate maximum allowed course limit for this class
+    const maxLimit = await calculateMaxCourseLimitPerSubject(class_id);
+    
+    if (parseInt(course_limit) > maxLimit) {
+      const subjectCount = await TeacherSubjectAssignment.distinct('subject_id', { class_id });
+      return res.status(400).json({ 
+        message: `Course limit cannot exceed ${maxLimit} periods per subject. Maximum allowed: ${maxLimit} (160 periods / ${subjectCount.length} subjects = ${maxLimit} per subject)` 
       });
     }
 
     // Check if assignment already exists
     let assignment = await TeacherSubjectAssignment.findOne({
       class_id: class_id,
-      subject_id: subject_id,
-      term_id: term_id
+      subject_id: subject_id
     });
 
     if (assignment) {
       // Update existing assignment
-      assignment.course_limit = course_limit;
+      assignment.course_limit = parseInt(course_limit);
       await assignment.save();
     } else {
+      // Get or create unassigned teacher
+      const User = (await import('../models/User.js')).default;
+      let unassignedTeacher = await User.findOne({ 
+        name: "Unassigned", 
+        role: "Teacher",
+        nic_number: "UNASSIGNED_SYSTEM"
+      });
+      
+      if (!unassignedTeacher) {
+        unassignedTeacher = await User.create({
+          name: "Unassigned",
+          role: "Teacher",
+          nic_number: "UNASSIGNED_SYSTEM",
+          is_deleted: false
+        });
+      }
+      
       // Create new assignment (without teacher initially)
       assignment = await TeacherSubjectAssignment.create({
         class_id: class_id,
         subject_id: subject_id,
-        term_id: term_id,
-        course_limit: course_limit,
-        user_id: null // Will be assigned when teacher is assigned
+        course_limit: parseInt(course_limit),
+        user_id: unassignedTeacher._id
       });
     }
 
     return res.json({ 
       success: true, 
-      message: "Course limit updated successfully",
-      assignment: assignment
+      message: `Course limit updated successfully. Maximum allowed for this class: ${maxLimit} periods per subject (160 periods / ${await TeacherSubjectAssignment.distinct('subject_id', { class_id }).then(count => count.length)} subjects)`,
+      assignment: assignment,
+      max_course_limit_per_subject: maxLimit
     });
 
   } catch (error) {
@@ -121,8 +160,12 @@ export const getCourseLimitStats = async (req, res) => {
       return res.status(400).json({ message: "Term ID is required" });
     }
 
-    // Get all course limits for this term
-    const courseLimits = await TeacherSubjectAssignment.find({ term_id: term_id })
+    // Get all classes for this term
+    const classes = await Class.find({ term_id: term_id });
+    const classIds = classes.map(c => c._id);
+
+    // Get all course limits for classes in this term
+    const courseLimits = await TeacherSubjectAssignment.find({ class_id: { $in: classIds } })
       .populate('class_id', 'class_name grade')
       .populate('subject_id', 'subject_name');
 

@@ -8,11 +8,13 @@ const AdminLeaves = () => {
   const [adminleavesTerms, setAdminleavesTerms] = useState([]);
   const [adminleavesTeachers, setAdminleavesTeachers] = useState([]);
   const [adminleavesList, setAdminleavesList] = useState([]);
-  const [adminleavesLoading, setAdminleavesLoading] = useState(false);
+  const [adminleavesLoading, setAdminleavesLoading] = useState(true);
   const [adminleavesShowModal, setAdminleavesShowModal] = useState(false);
   const [adminleavesAlerts, setAdminleavesAlerts] = useState([]);
   const [adminleavesFilterStatus, setAdminleavesFilterStatus] = useState('ALL');
   const [adminleavesFilterTerm, setAdminleavesFilterTerm] = useState('');
+  const [adminleavesFilterTeacher, setAdminleavesFilterTeacher] = useState('');
+  const [error, setError] = useState(null);
   
   const [adminleavesForm, setAdminleavesForm] = useState({
     user_id: '',
@@ -33,39 +35,91 @@ const AdminLeaves = () => {
 
   const adminleavesFetchTerms = async () => {
     try {
-      const r = await fetch('/api/admin/terms');
+      const token = localStorage.getItem('token') || '';
+      const r = await fetch('http://localhost:5000/api/admin/terms', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      if (!r.ok) {
+        throw new Error(`Failed to fetch terms: ${r.status}`);
+      }
       const data = await r.json();
-      setAdminleavesTerms(data || []);
+      setAdminleavesTerms(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error('Error fetching terms:', error);
       adminleavesAddAlert('Error fetching terms', 'error');
+      setAdminleavesTerms([]);
     }
   };
 
   const adminleavesFetchTeachers = async () => {
     try {
-      const r = await fetch('/api/admin/users?role=Teacher');
+      const token = localStorage.getItem('token') || '';
+      const r = await fetch('http://localhost:5000/api/admin/users?role=Teacher', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      if (!r.ok) {
+        throw new Error(`Failed to fetch teachers: ${r.status}`);
+      }
       const data = await r.json();
-      const teachers = data.users || data || [];
-      setAdminleavesTeachers(teachers.filter(t => t.role === 'Teacher'));
+      const teachers = Array.isArray(data.users) ? data.users : (Array.isArray(data) ? data : []);
+      setAdminleavesTeachers(teachers.filter(t => t && t.role === 'Teacher'));
     } catch (error) {
+      console.error('Error fetching teachers:', error);
       adminleavesAddAlert('Error fetching teachers', 'error');
+      setAdminleavesTeachers([]);
     }
   };
 
   const adminleavesFetchLeaves = async () => {
     try {
       setAdminleavesLoading(true);
-      const r = await fetch('/api/admin/leaves');
+      setError(null);
+      const token = localStorage.getItem('token') || '';
+      // Fetch ALL leave requests from ALL teachers (no user_id filter)
+      const r = await fetch('http://localhost:5000/api/admin/leaves', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      
       if (!r.ok) {
-        throw new Error('Failed to fetch leaves');
+        const errorText = await r.text();
+        console.error('Failed to fetch leaves. Status:', r.status, 'Response:', errorText);
+        throw new Error(`Failed to fetch leaves: ${r.status} ${r.statusText}`);
       }
+      
       const data = await r.json();
+      console.log('Fetched leaves data:', data);
+      
       // Ensure we have an array and filter out any invalid entries
-      const validLeaves = Array.isArray(data) ? data.filter(leave => leave && leave._id) : [];
+      const validLeaves = Array.isArray(data) 
+        ? data.filter(leave => {
+            // Allow leaves even if user_id is not populated yet (will be populated)
+            return leave && leave._id;
+          })
+        : [];
+      
+      // Sort by creation date (newest first)
+      validLeaves.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.createdAt || b.created_at || 0);
+        return dateB - dateA;
+      });
+      
+      console.log('Valid leaves count:', validLeaves.length);
       setAdminleavesList(validLeaves);
     } catch (error) {
       console.error('Error fetching leaves:', error);
-      adminleavesAddAlert('Error fetching leaves: ' + (error.message || 'Unknown error'), 'error');
+      const errorMsg = error.message || 'Unknown error';
+      setError(errorMsg);
+      adminleavesAddAlert('Error fetching leaves: ' + errorMsg + '. Please check if the backend server is running on port 5000.', 'error');
       setAdminleavesList([]);
     } finally {
       setAdminleavesLoading(false);
@@ -125,7 +179,7 @@ const AdminLeaves = () => {
     }
 
     try {
-      const response = await fetch(`/api/admin/leaves/${id}/approve`, { method: 'PUT' });
+      const response = await fetch(`http://localhost:5000/api/admin/leaves/${id}/approve`, { method: 'PUT' });
       if (response.ok) {
         adminleavesAddAlert('Leave approved successfully! Replacement teachers will be notified.', 'success');
         // Refresh the list to show updated status
@@ -144,7 +198,7 @@ const AdminLeaves = () => {
     const reason = prompt('Enter reason for rejection (optional):');
     
     try {
-      const response = await fetch(`/api/admin/leaves/${id}/reject`, {
+      const response = await fetch(`http://localhost:5000/api/admin/leaves/${id}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: reason || '' })
@@ -165,24 +219,43 @@ const AdminLeaves = () => {
   };
 
   const adminleavesGetFilteredLeaves = () => {
-    let filtered = adminleavesList;
-    
-    if (adminleavesFilterStatus !== 'ALL') {
-      filtered = filtered.filter(leave => {
-        // Handle both new format (status) and old format (approved)
-        const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
-        return status === adminleavesFilterStatus;
-      });
+    try {
+      if (!Array.isArray(adminleavesList)) {
+        return [];
+      }
+      
+      let filtered = [...adminleavesList];
+      
+      if (adminleavesFilterStatus !== 'ALL') {
+        filtered = filtered.filter(leave => {
+          if (!leave) return false;
+          // Handle both new format (status) and old format (approved)
+          const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
+          return status === adminleavesFilterStatus;
+        });
+      }
+      
+      if (adminleavesFilterTerm) {
+        filtered = filtered.filter(leave => {
+          if (!leave) return false;
+          const leaveTermId = typeof leave.term_id === 'object' ? leave.term_id?._id : leave.term_id;
+          return leaveTermId && leaveTermId.toString() === adminleavesFilterTerm;
+        });
+      }
+      
+      if (adminleavesFilterTeacher) {
+        filtered = filtered.filter(leave => {
+          if (!leave) return false;
+          const teacherId = typeof leave.user_id === 'object' ? leave.user_id?._id : leave.user_id;
+          return teacherId && teacherId.toString() === adminleavesFilterTeacher;
+        });
+      }
+      
+      return filtered;
+    } catch (err) {
+      console.error('Error filtering leaves:', err);
+      return [];
     }
-    
-    if (adminleavesFilterTerm) {
-      filtered = filtered.filter(leave => {
-        const leaveTermId = typeof leave.term_id === 'object' ? leave.term_id._id : leave.term_id;
-        return leaveTermId === adminleavesFilterTerm;
-      });
-    }
-    
-    return filtered;
   };
 
   const adminleavesGetStatusColor = (leave) => {
@@ -258,6 +331,38 @@ const AdminLeaves = () => {
 
   const filteredLeaves = adminleavesGetFilteredLeaves();
 
+  // Show error state if there's a critical error
+  if (error && adminleavesList.length === 0 && !adminleavesLoading) {
+    return (
+      <AdminLayout
+        pageTitle="Leave Management"
+        pageDescription="Manage teacher leave requests and automated replacements"
+      >
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h2>Error Loading Leave Requests</h2>
+          <p>{error}</p>
+          <p style={{ marginTop: '10px', color: '#666' }}>
+            Please ensure the backend server is running on http://localhost:5000
+          </p>
+          <button 
+            onClick={adminleavesFetchLeaves}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout
       pageTitle="Leave Management"
@@ -277,15 +382,7 @@ const AdminLeaves = () => {
         <div className="adminleaves-header">
           <div className="adminleaves-header-left">
             <h1 className="adminleaves-page-title">Leave Management</h1>
-            <p className="adminleaves-page-subtitle">Manage teacher leave requests and automated replacements</p>
-          </div>
-          <div className="adminleaves-header-right">
-            <button
-              className="adminleaves-btn adminleaves-btn-primary"
-              onClick={() => setAdminleavesShowModal(true)}
-            >
-              ➕ Request Leave
-            </button>
+            <p className="adminleaves-page-subtitle">View and manage all teacher leave requests. Approved leaves automatically trigger replacement process.</p>
           </div>
         </div>
 
@@ -296,10 +393,11 @@ const AdminLeaves = () => {
               <div className="adminleaves-stat-icon">⏳</div>
               <div className="adminleaves-stat-content">
                 <h3 className="adminleaves-stat-value">
-                  {adminleavesList.filter(l => {
+                  {Array.isArray(adminleavesList) ? adminleavesList.filter(l => {
+                    if (!l) return false;
                     const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
                     return status === 'PENDING';
-                  }).length}
+                  }).length : 0}
                 </h3>
                 <p className="adminleaves-stat-label">Pending Requests</p>
               </div>
@@ -309,10 +407,11 @@ const AdminLeaves = () => {
               <div className="adminleaves-stat-icon">✅</div>
               <div className="adminleaves-stat-content">
                 <h3 className="adminleaves-stat-value">
-                  {adminleavesList.filter(l => {
+                  {Array.isArray(adminleavesList) ? adminleavesList.filter(l => {
+                    if (!l) return false;
                     const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
                     return status === 'APPROVED';
-                  }).length}
+                  }).length : 0}
                 </h3>
                 <p className="adminleaves-stat-label">Approved</p>
               </div>
@@ -322,10 +421,11 @@ const AdminLeaves = () => {
               <div className="adminleaves-stat-icon">❌</div>
               <div className="adminleaves-stat-content">
                 <h3 className="adminleaves-stat-value">
-                  {adminleavesList.filter(l => {
+                  {Array.isArray(adminleavesList) ? adminleavesList.filter(l => {
+                    if (!l) return false;
                     const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
                     return status === 'REJECTED';
-                  }).length}
+                  }).length : 0}
                 </h3>
                 <p className="adminleaves-stat-label">Rejected</p>
               </div>
@@ -335,7 +435,7 @@ const AdminLeaves = () => {
               <div className="adminleaves-stat-icon">📋</div>
               <div className="adminleaves-stat-content">
                 <h3 className="adminleaves-stat-value">
-                  {adminleavesList.length}
+                  {Array.isArray(adminleavesList) ? adminleavesList.length : 0}
                 </h3>
                 <p className="adminleaves-stat-label">Total Requests</p>
               </div>
@@ -369,9 +469,26 @@ const AdminLeaves = () => {
               className="adminleaves-filter-select"
             >
               <option value="">All Terms</option>
-              {adminleavesTerms.map(term => (
-                <option key={term._id} value={term._id}>
-                  Term {term.term_number} - {term.academic_year_id?.year_label || ''}
+              {Array.isArray(adminleavesTerms) && adminleavesTerms.map(term => (
+                <option key={term?._id || Math.random()} value={term?._id || ''}>
+                  Term {term?.term_number || 'N/A'} - {term?.academic_year_id?.year_label || ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="adminleaves-filter-group">
+            <label htmlFor="adminleaves-teacher-filter">Filter by Teacher:</label>
+            <select
+              id="adminleaves-teacher-filter"
+              value={adminleavesFilterTeacher}
+              onChange={(e) => setAdminleavesFilterTeacher(e.target.value)}
+              className="adminleaves-filter-select"
+            >
+              <option value="">All Teachers</option>
+              {Array.isArray(adminleavesTeachers) && adminleavesTeachers.map(teacher => (
+                <option key={teacher?._id || Math.random()} value={teacher?._id || ''}>
+                  {teacher?.name || 'Unknown Teacher'}
                 </option>
               ))}
             </select>
@@ -387,7 +504,8 @@ const AdminLeaves = () => {
         {/* Leave Requests List */}
         <div className="adminleaves-list-section">
           <div className="adminleaves-list-header">
-            <h2 className="adminleaves-list-title">Leave Requests</h2>
+            <h2 className="adminleaves-list-title">All Teacher Leave Requests</h2>
+            <p className="adminleaves-list-subtitle">All leave requests submitted by teachers will appear here. Approved leaves automatically trigger replacement process.</p>
           </div>
           
           {adminleavesLoading ? (
@@ -530,132 +648,6 @@ const AdminLeaves = () => {
           )}
         </div>
 
-        {/* Leave Request Modal */}
-        {adminleavesShowModal && (
-          <div className="adminleaves-modal-overlay">
-            <div className="adminleaves-modal">
-              <div className="adminleaves-modal-header">
-                <h2>Request Teacher Leave</h2>
-                <button
-                  className="adminleaves-close-btn"
-                  onClick={() => setAdminleavesShowModal(false)}
-                >
-                  ×
-                </button>
-              </div>
-              
-              <form onSubmit={adminleavesRequestLeave} className="adminleaves-modal-form">
-                <div className="adminleaves-form-row">
-                  <div className="adminleaves-form-group">
-                    <label htmlFor="adminleaves-teacher-select">Teacher *</label>
-                    <select
-                      id="adminleaves-teacher-select"
-                      value={adminleavesForm.user_id}
-                      onChange={(e) => setAdminleavesForm({...adminleavesForm, user_id: e.target.value})}
-                      required
-                      className="adminleaves-form-select"
-                    >
-          <option value="">Select Teacher</option>
-                      {adminleavesTeachers.map(teacher => (
-                        <option key={teacher._id} value={teacher._id}>
-                          {teacher.name}
-                        </option>
-                      ))}
-        </select>
-                  </div>
-                  
-                  <div className="adminleaves-form-group">
-                    <label htmlFor="adminleaves-term-select">Term *</label>
-                    <select
-                      id="adminleaves-term-select"
-                      value={adminleavesForm.term_id}
-                      onChange={(e) => setAdminleavesForm({...adminleavesForm, term_id: e.target.value})}
-                      required
-                      className="adminleaves-form-select"
-                    >
-          <option value="">Select Term</option>
-                      {adminleavesTerms.map(term => (
-                        <option key={term._id} value={term._id}>
-                          Term {term.term_number} - {term.academic_year_id?.year_label || ''}
-                        </option>
-                      ))}
-        </select>
-                  </div>
-                </div>
-                
-                <div className="adminleaves-form-row">
-                  <div className="adminleaves-form-group">
-                    <label htmlFor="adminleaves-start-date">Start Date *</label>
-                    <input
-                      type="date"
-                      id="adminleaves-start-date"
-                      value={adminleavesForm.start_date}
-                      onChange={(e) => setAdminleavesForm({...adminleavesForm, start_date: e.target.value})}
-                      required
-                      className="adminleaves-form-input"
-                    />
-                  </div>
-                  
-                  <div className="adminleaves-form-group">
-                    <label htmlFor="adminleaves-end-date">End Date *</label>
-                    <input
-                      type="date"
-                      id="adminleaves-end-date"
-                      value={adminleavesForm.end_date}
-                      onChange={(e) => setAdminleavesForm({...adminleavesForm, end_date: e.target.value})}
-                      required
-                      className="adminleaves-form-input"
-                    />
-                  </div>
-                </div>
-                
-                <div className="adminleaves-form-group">
-                  <label htmlFor="adminleaves-type-select">Leave Type *</label>
-                  <select
-                    id="adminleaves-type-select"
-                    value={adminleavesForm.type}
-                    onChange={(e) => setAdminleavesForm({...adminleavesForm, type: e.target.value})}
-                    required
-                    className="adminleaves-form-select"
-                  >
-                    <option value="FULL_DAY">Full Day</option>
-                    <option value="FIRST_HALF">First Half</option>
-                    <option value="SECOND_HALF">Second Half</option>
-        </select>
-                </div>
-                
-                <div className="adminleaves-form-group">
-                  <label htmlFor="adminleaves-reason">Reason</label>
-                  <textarea
-                    id="adminleaves-reason"
-                    value={adminleavesForm.reason}
-                    onChange={(e) => setAdminleavesForm({...adminleavesForm, reason: e.target.value})}
-                    rows="3"
-                    placeholder="Enter reason for leave..."
-                    className="adminleaves-form-textarea"
-                  />
-                </div>
-                
-                <div className="adminleaves-modal-actions">
-                  <button
-                    type="button"
-                    className="adminleaves-btn adminleaves-btn-outline"
-                    onClick={() => setAdminleavesShowModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="adminleaves-btn adminleaves-btn-primary"
-                    disabled={adminleavesLoading}
-                  >
-                    {adminleavesLoading ? 'Submitting...' : 'Submit Request'}
-                  </button>
-                </div>
-      </form>
-            </div>
-          </div>
-        )}
     </div>
     </AdminLayout>
   );

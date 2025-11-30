@@ -1,0 +1,80 @@
+.teacherclasses-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.teacherclasses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.teacherclasses-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.teacherclasses-card-header {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  padding: 1.5rem;
+}
+
+.teacherclasses-card-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.teacherclasses-card-body {
+  padding: 1.5rem;
+}
+
+.teacherclasses-info {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.teacherclasses-info:last-child {
+  border-bottom: none;
+}
+
+.teacherclasses-label {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.teacherclasses-value {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.teacherclasses-card-footer {
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+}
+
+.teacherclasses-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.teacherclasses-loading,
+.teacherclasses-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+

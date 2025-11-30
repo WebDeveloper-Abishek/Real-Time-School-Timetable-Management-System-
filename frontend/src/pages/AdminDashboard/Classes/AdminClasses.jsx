@@ -14,8 +14,6 @@ const AdminClasses = () => {
   const [alerts, setAlerts] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
-  const [showViewDetails, setShowViewDetails] = useState(false);
-  const [selectedClassForDetails, setSelectedClassForDetails] = useState(null);
   
   // Filters
   const [selectedTerm, setSelectedTerm] = useState('');
@@ -51,22 +49,27 @@ const AdminClasses = () => {
   // Initialize data function
   const initializeData = useCallback(async () => {
     try {
-      console.log('Attempting to load classes data...');
       const [termsData, classesData, subjectsData] = await Promise.all([
         termsAPI.getTerms(),
         classAPI.getClasses(),
         subjectAPI.getSubjects()
       ]);
       
-      console.log('API Response - Terms:', termsData);
-      console.log('API Response - Classes:', classesData);
-      console.log('API Response - Subjects:', subjectsData);
-      console.log('Initial terms loaded:', Array.isArray(termsData) ? termsData.length : 0, 'terms');
-      console.log('Initial classes loaded:', Array.isArray(classesData) ? classesData.length : 0, 'classes');
-      console.log('Initial subjects loaded:', Array.isArray(subjectsData) ? subjectsData.length : 0, 'subjects');
-      
       setTerms(Array.isArray(termsData) ? termsData : []);
-      setClasses(Array.isArray(classesData) ? classesData : []);
+      // Sort classes by grade (ascending) then by section (ascending)
+      if (Array.isArray(classesData)) {
+        const sortedClasses = [...classesData].sort((a, b) => {
+          const gradeA = parseInt(a.grade) || 0;
+          const gradeB = parseInt(b.grade) || 0;
+          if (gradeA !== gradeB) {
+            return gradeA - gradeB;
+          }
+          return (a.section || '').localeCompare(b.section || '');
+        });
+        setClasses(sortedClasses);
+      } else {
+        setClasses([]);
+      }
       setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
     } catch (error) {
       console.error('Error initializing data:', error);
@@ -115,15 +118,6 @@ const AdminClasses = () => {
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     
-    console.log('Current date:', currentDate.toISOString().split('T')[0]);
-    console.log('Current year:', currentYear);
-    console.log('All terms with academic years:', terms.map(t => ({
-      term: t.term_number,
-      year: t.academic_year_id?.year_label,
-      yearActive: t.academic_year_id?.is_active,
-      start: t.start_date,
-      end: t.end_date
-    })));
     
     // Method 1: Find academic year that contains current date
     const currentAcademicYear = terms.find(term => {
@@ -155,14 +149,10 @@ const AdminClasses = () => {
     const targetYear = currentAcademicYear || activeAcademicYear || yearBasedAcademicYear;
     
     if (!targetYear) {
-      console.log('No current, active, or year-based academic year found');
       return [];
     }
     
     const currentYearId = targetYear.academic_year_id._id;
-    console.log('Target academic year ID:', currentYearId);
-    console.log('Target academic year label:', targetYear.academic_year_id.year_label);
-    console.log('Target academic year active:', targetYear.academic_year_id.is_active);
     
     // Get all terms for the current academic year
     const currentYearTerms = terms.filter(term => {
@@ -172,9 +162,6 @@ const AdminClasses = () => {
       return termYearId === currentYearId;
     });
     
-    console.log('Current year terms found:', currentYearTerms.length);
-    console.log('Current year terms:', currentYearTerms.map(t => `${t.term_number} - ${t.academic_year_id?.year_label}`));
-    
     return currentYearTerms;
   };
 
@@ -183,22 +170,8 @@ const AdminClasses = () => {
     const currentYearTerms = getCurrentAcademicYearTerms(terms);
     setCurrentTerms(currentYearTerms);
     
-    console.log('=== TERMS DEBUG ===');
-    console.log('All terms:', terms.map(t => ({
-      id: t._id,
-      term: t.term_number,
-      year: t.academic_year_id?.year_label,
-      yearId: t.academic_year_id?._id
-    })));
-    console.log('Current year terms:', currentYearTerms.map(t => ({
-      id: t._id,
-      term: t.term_number,
-      year: t.academic_year_id?.year_label
-    })));
-    
     // Auto-select first term if no source term is selected
     if (currentYearTerms.length > 0 && !bulkSourceTerm) {
-      console.log('Auto-selecting first term:', currentYearTerms[0]._id);
       setBulkSourceTerm(currentYearTerms[0]._id);
       
       // Also set the next term
@@ -267,19 +240,15 @@ const AdminClasses = () => {
 
   // Handle source term change - SIMPLE VERSION
   const handleSourceTermChange = (sourceTermId) => {
-    console.log('Source term changed to:', sourceTermId);
     setBulkSourceTerm(sourceTermId);
     
     if (sourceTermId) {
       // Find the source term
       const sourceTerm = terms.find(term => term._id === sourceTermId);
-      console.log('Found source term:', sourceTerm);
       
       if (sourceTerm) {
         const sourceTermNumber = sourceTerm.term_number;
         const sourceYearId = sourceTerm.academic_year_id._id;
-        
-        console.log('Source term number:', sourceTermNumber, 'Year ID:', sourceYearId);
         
         let nextTerm = null;
         
@@ -295,26 +264,20 @@ const AdminClasses = () => {
           const currentYear = new Date().getFullYear();
           const nextYear = currentYear + 1;
           
-          console.log('Looking for next year:', nextYear, 'from source year:', sourceYearLabel);
-          
           nextTerm = terms.find(t => {
             if (t.term_number !== 1) return false;
             if (t.academic_year_id._id === sourceYearId) return false;
             
             const targetYearLabel = t.academic_year_id.year_label;
-            console.log('Checking term:', t.term_number, 'year:', targetYearLabel);
             
             // Check if this is the next academic year
             return targetYearLabel.includes(nextYear.toString());
           });
         }
         
-        console.log('Found next term:', nextTerm);
-        
         if (nextTerm) {
           setBulkTargetTerm(nextTerm._id);
           setAvailableTargetTerms([nextTerm]);
-          console.log('Set target term to:', nextTerm._id);
         } else {
           setBulkTargetTerm('');
           setAvailableTargetTerms([]);
@@ -354,7 +317,20 @@ const AdminClasses = () => {
       
       // Refresh classes data
       const updatedData = await classAPI.getClasses();
-      setClasses(updatedData || []);
+      if (Array.isArray(updatedData)) {
+        // Sort classes by grade (ascending) then by section (ascending)
+        const sortedClasses = [...updatedData].sort((a, b) => {
+          const gradeA = parseInt(a.grade) || 0;
+          const gradeB = parseInt(b.grade) || 0;
+          if (gradeA !== gradeB) {
+            return gradeA - gradeB;
+          }
+          return (a.section || '').localeCompare(b.section || '');
+        });
+        setClasses(sortedClasses);
+      } else {
+        setClasses([]);
+      }
       
     } catch (error) {
       console.error('Error in bulk assignment:', error);
@@ -481,10 +457,6 @@ const AdminClasses = () => {
     setFormData({ term_id: '', grade: '', section: '', class_name: '' });
   };
 
-  const handleViewDetails = (classData) => {
-    setSelectedClassForDetails(classData);
-    setShowViewDetails(true);
-  };
 
 
   // Simple utility functions
@@ -564,33 +536,83 @@ const AdminClasses = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="classes-filters">
-          <div className="filter-group">
-            <label htmlFor="term-filter">Filter by Term (Current Academic Year):</label>
-            <select
-              id="term-filter"
-              value={selectedTerm}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSelectedTerm(value);
-                if (value) {
-                  setSearchParams({ term_id: value });
-                } else {
-                  setSearchParams({});
-                }
-              }}
-            >
-              <option value="">All Current Year Terms</option>
-              {currentTerms.map(term => (
-                <option key={term._id} value={term._id}>
-                  {getTermName(term)}
-                </option>
-              ))}
-            </select>
+        {/* Bulk Term Assignment Section */}
+        <div className="bulk-assignment-section">
+          <div className="section-header">
+            <h3>🔄 Bulk Term Assignment</h3>
+            <p>Move all classes from one term to the next term automatically</p>
           </div>
+          
+          {/* All controls in one line */}
+          <div className="bulk-assignment-controls-all">
+            <div className="filter-group">
+              <label htmlFor="term-filter">Filter by Term:</label>
+              <select
+                id="term-filter"
+                value={selectedTerm}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedTerm(value);
+                  if (value) {
+                    setSearchParams({ term_id: value });
+                  } else {
+                    setSearchParams({});
+                  }
+                }}
+              >
+                <option value="">All Current Year Terms</option>
+                {currentTerms.map(term => (
+                  <option key={term._id} value={term._id}>
+                    {getTermName(term)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <label htmlFor="source-term">From Term:</label>
+              <select
+                id="source-term"
+                value={bulkSourceTerm}
+                onChange={(e) => handleSourceTermChange(e.target.value)}
+              >
+                <option value="">Select Term</option>
+                {currentTerms.map(term => (
+                  <option key={term._id} value={term._id}>
+                    {getTermName(term)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <label htmlFor="target-term">To Term:</label>
+              <select
+                id="target-term"
+                value={bulkTargetTerm}
+                onChange={(e) => setBulkTargetTerm(e.target.value)}
+                disabled={!bulkSourceTerm}
+              >
+                <option value="">Select Term</option>
+                {availableTargetTerms.map(term => (
+                  <option key={term._id} value={term._id}>
+                    {getTermName(term)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <button 
+              className="btn btn-primary"
+              onClick={handleBulkTermAssignment}
+              disabled={!bulkSourceTerm || !bulkTargetTerm || bulkSourceTerm === bulkTargetTerm}
+            >
+              🔄 Move All Classes
+            </button>
+          </div>
+          
           {selectedTerm && (
-            <div className="filter-info">
+            <div className="filter-info" style={{ marginTop: '1rem' }}>
               <span className="filter-badge">
                 Showing classes for: {getTermName(currentTerms.find(t => t._id === selectedTerm))}
               </span>
@@ -605,52 +627,6 @@ const AdminClasses = () => {
               </button>
             </div>
           )}
-        </div>
-
-        {/* Bulk Term Assignment Section */}
-        <div className="bulk-assignment-section">
-          <div className="section-header">
-            <h3>🔄 Bulk Term Assignment</h3>
-            <p>Move all classes from one term to the next term automatically</p>
-          </div>
-          <div className="bulk-assignment-controls">
-            <div className="filter-group">
-              <label htmlFor="source-term">From Term:</label>
-              <select
-                id="source-term"
-                value={bulkSourceTerm}
-                onChange={(e) => handleSourceTermChange(e.target.value)}
-              >
-                {currentTerms.map(term => (
-                  <option key={term._id} value={term._id}>
-                    {getTermName(term)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-group">
-              <label htmlFor="target-term">To Term:</label>
-              <select
-                id="target-term"
-                value={bulkTargetTerm}
-                onChange={(e) => setBulkTargetTerm(e.target.value)}
-                disabled={!bulkSourceTerm}
-              >
-                {availableTargetTerms.map(term => (
-                  <option key={term._id} value={term._id}>
-                    {getTermName(term)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button 
-              className="btn btn-primary"
-              onClick={handleBulkTermAssignment}
-              disabled={!bulkSourceTerm || !bulkTargetTerm || bulkSourceTerm === bulkTargetTerm}
-            >
-              🔄 Move All Classes
-            </button>
-          </div>
         </div>
 
         {/* Classes Grid */}
@@ -727,6 +703,19 @@ const AdminClasses = () => {
                         </div>
                         <div className="admin-classes-card-info-value">
                           {(() => {
+                            // Get unique subjects from teacher assignments
+                            const uniqueSubjectIds = new Set();
+                            if (classData.teacher_assignments && Array.isArray(classData.teacher_assignments)) {
+                              classData.teacher_assignments.forEach(assignment => {
+                                const subjectId = assignment.subject_id?._id || assignment.subject_id;
+                                if (subjectId) {
+                                  uniqueSubjectIds.add(subjectId.toString());
+                                }
+                              });
+                            }
+                            const assignedSubjectCount = uniqueSubjectIds.size;
+                            
+                            // Get total subjects for the term
                             const termSubjects = subjects.filter(subject => {
                               const subjectTermId = typeof subject.term_id === 'object' 
                                 ? subject.term_id._id 
@@ -734,16 +723,7 @@ const AdminClasses = () => {
                               return subjectTermId === classTermId;
                             });
                             
-                            const assignedSubjects = termSubjects.filter(subject => {
-                              return classData.teacher_assignments?.some(assignment => {
-                                const assignmentSubjectId = typeof assignment.subject_id === 'object' 
-                                  ? assignment.subject_id._id 
-                                  : assignment.subject_id;
-                                return assignmentSubjectId === subject._id;
-                              });
-                            });
-                            
-                            return `${assignedSubjects.length}/${termSubjects.length}`;
+                            return `${assignedSubjectCount}/${termSubjects.length}`;
                           })()}
                         </div>
                       </div>
@@ -753,7 +733,32 @@ const AdminClasses = () => {
                           <span className="admin-classes-card-info-icon">👨‍🏫</span>
                           Teachers
                         </div>
-                        <div className="admin-classes-card-info-value">{classData.teacher_assignments?.length || 0}</div>
+                        <div className="admin-classes-card-info-value">
+                          {(() => {
+                            // Count unique teachers (including class teacher)
+                            const uniqueTeacherIds = new Set();
+                            
+                            // Add class teacher if exists
+                            if (classData.class_teacher_id) {
+                              const classTeacherId = classData.class_teacher_id._id || classData.class_teacher_id;
+                              if (classTeacherId) {
+                                uniqueTeacherIds.add(classTeacherId.toString());
+                              }
+                            }
+                            
+                            // Add teachers from assignments
+                            if (classData.teacher_assignments && Array.isArray(classData.teacher_assignments)) {
+                              classData.teacher_assignments.forEach(assignment => {
+                                const teacherId = assignment.user_id?._id || assignment.user_id;
+                                if (teacherId) {
+                                  uniqueTeacherIds.add(teacherId.toString());
+                                }
+                              });
+                            }
+                            
+                            return uniqueTeacherIds.size;
+                          })()}
+                        </div>
                       </div>
                       
                       <div className="admin-classes-card-info-item">
@@ -761,7 +766,9 @@ const AdminClasses = () => {
                           <span className="admin-classes-card-info-icon">👥</span>
                           Students
                         </div>
-                        <div className="admin-classes-card-info-value">{classData.students?.length || 0}</div>
+                        <div className="admin-classes-card-info-value">
+                          {classData.students && Array.isArray(classData.students) ? classData.students.length : 0}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -799,15 +806,6 @@ const AdminClasses = () => {
                     </div>
                     
                     <div className="admin-classes-card-actions-row">
-                      <button 
-                        className="admin-classes-card-btn admin-classes-card-btn-view"
-                        onClick={() => handleViewDetails(classData)}
-                        title="View Details"
-                      >
-                        <span className="admin-classes-card-btn-icon">👁️</span>
-                        View
-                      </button>
-
                       <button 
                         className="admin-classes-card-btn admin-classes-card-btn-edit"
                         onClick={() => handleEdit(classData)}
@@ -922,183 +920,6 @@ const AdminClasses = () => {
         )}
 
 
-        {/* View Details Modal */}
-        {showViewDetails && selectedClassForDetails && (
-          <div className="modal-overlay">
-            <div className="modal modal-large">
-              <div className="modal-header">
-                <div className="modal-title-section">
-                  <h3>👁️ Class Details - {selectedClassForDetails.class_name}</h3>
-                  <p className="modal-subtitle">Complete information about this class</p>
-                </div>
-                <button className="close-btn" onClick={() => setShowViewDetails(false)}>×</button>
-              </div>
-              <div className="modal-content">
-                {/* Class Information */}
-                <div className="details-section">
-                  <h4>📋 Class Information</h4>
-                  <div className="details-grid">
-                    <div className="detail-item">
-                      <span className="detail-label">Class Name:</span>
-                      <span className="detail-value">{selectedClassForDetails.class_name}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Grade:</span>
-                      <span className="detail-value">Grade {selectedClassForDetails.grade}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Section:</span>
-                      <span className="detail-value">{selectedClassForDetails.section}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Term:</span>
-                      <span className="detail-value">{getTermName(selectedClassForDetails.term_id)}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Course Limit:</span>
-                      <span className="detail-value">{selectedClassForDetails.course_limit || 0} periods</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Status:</span>
-                      <span className="detail-value">
-                        {(() => {
-                          const classTermId = typeof selectedClassForDetails.term_id === 'object' 
-                            ? selectedClassForDetails.term_id._id 
-                            : selectedClassForDetails.term_id;
-                          const term = terms.find(t => t._id === classTermId);
-                          
-                          if (term) {
-                            const status = getTermStatus(term);
-                            return getStatusBadge(status);
-                          }
-                          return '⚪ Unknown';
-                        })()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Class Teacher */}
-                <div className="details-section">
-                  <h4>👨‍🏫 Class Teacher</h4>
-                  <div className="assignment-list">
-                    {selectedClassForDetails.class_teacher ? (
-                      <div className="assignment-item">
-                        <div className="item-info">
-                          <span className="item-name">{selectedClassForDetails.class_teacher.user_id?.name || 'Not Assigned'}</span>
-                          <span className="item-details">Class Teacher</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="no-assignments">
-                        <span>No class teacher assigned</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Subject Assignments */}
-                <div className="details-section">
-                  <h4>📚 Subject Assignments</h4>
-                  <div className="assignment-list">
-                    {selectedClassForDetails.teacher_assignments && selectedClassForDetails.teacher_assignments.length > 0 ? (
-                      selectedClassForDetails.teacher_assignments.map(assignment => (
-                        <div key={assignment._id} className="assignment-item">
-                          <div className="item-info">
-                            <span className="item-name">{assignment.subject_id?.subject_name || 'Unknown Subject'}</span>
-                            <span className="item-details">
-                              Teacher: {assignment.user_id?.name || 'Unassigned'} | 
-                              Periods: {assignment.course_limit || 0}
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="no-assignments">
-                        <span>No subject teachers assigned</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Student Count */}
-                <div className="details-section">
-                  <h4>👥 Students</h4>
-                  <div className="assignment-list">
-                    <div className="assignment-item">
-                      <div className="item-info">
-                        <span className="item-name">Total Students</span>
-                        <span className="item-details">{selectedClassForDetails.students?.length || 0} students enrolled</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="details-section">
-                  <h4>📊 Quick Statistics</h4>
-                  <div className="stats-grid">
-                    <div className="stat-card">
-                      <span className="stat-number">{selectedClassForDetails.teacher_assignments?.length || 0}</span>
-                      <span className="stat-label">Subject Teachers</span>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-number">{selectedClassForDetails.students?.length || 0}</span>
-                      <span className="stat-label">Students</span>
-                    </div>
-                    <div className="stat-card">
-                      <span className="stat-number">
-                        {(() => {
-                          const classTermId = typeof selectedClassForDetails.term_id === 'object' 
-                            ? selectedClassForDetails.term_id._id 
-                            : selectedClassForDetails.term_id;
-                          
-                          const termSubjects = subjects.filter(subject => {
-                            const subjectTermId = typeof subject.term_id === 'object' 
-                              ? subject.term_id._id 
-                              : subject.term_id;
-                            return subjectTermId === classTermId;
-                          });
-                          
-                          const assignedSubjects = termSubjects.filter(subject => {
-                            return selectedClassForDetails.teacher_assignments?.some(assignment => {
-                              const assignmentSubjectId = typeof assignment.subject_id === 'object' 
-                                ? assignment.subject_id._id 
-                                : assignment.subject_id;
-                              return assignmentSubjectId === subject._id;
-                            });
-                          });
-                          
-                          return `${assignedSubjects.length}/${termSubjects.length}`;
-                        })()}
-                      </span>
-                      <span className="stat-label">Subjects Assigned</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <div className="modal-actions">
-                  <button 
-                    className="btn btn-outline"
-                    onClick={() => setShowViewDetails(false)}
-                  >
-                    Close Details
-                  </button>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setShowViewDetails(false);
-                      handleEdit(selectedClassForDetails);
-                    }}
-                  >
-                    Edit Class
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </AdminLayout>
   );

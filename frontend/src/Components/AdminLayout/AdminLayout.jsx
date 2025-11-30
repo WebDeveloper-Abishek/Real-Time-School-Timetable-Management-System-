@@ -181,9 +181,15 @@ const AdminLayout = ({ children, pageTitle = "Admin Dashboard", pageDescription 
               <h3 className="nav-title">Leave Management</h3>
               <ul className="nav-list">
                 <li className="nav-item">
-                  <button className="nav-link" onClick={go('/admin/leave-requests')}>
+                  <button className="nav-link" onClick={go('/admin/leaves')}>
                     <span className="nav-icon">🏖️</span>
-                    <span>Leave & Replacements</span>
+                    <span>Leave Requests</span>
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button className="nav-link" onClick={go('/admin/replacements')}>
+                    <span className="nav-icon">🔄</span>
+                    <span>Replacements</span>
                   </button>
                 </li>
                 <li className="nav-item">

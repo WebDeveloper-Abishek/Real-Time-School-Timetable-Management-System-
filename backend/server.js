@@ -115,6 +115,7 @@ io.on('connection', (socket) => {
       io.to(`user_${receiverIdStr}`).emit('receive_message', populatedMessage);
       socket.emit('message_sent', populatedMessage);
     } catch (error) {
+      console.error('Send message error:', error.message);
       socket.emit('message_error', { error: 'Failed to send message' });
     }
   });
@@ -149,7 +150,7 @@ io.on('connection', (socket) => {
       io.to(`user_${userIdStr}`).emit('message_deleted', { messageId });
       io.to(`user_${otherUserId}`).emit('message_deleted', { messageId });
     } catch (error) {
-      console.error('Error deleting message:', error);
+      console.error('Error deleting message:', error.message);
       socket.emit('delete_error', { error: 'Failed to delete message' });
     }
   });

@@ -72,7 +72,6 @@ export const createUserDeletionNotification = async (deletedUserName, deletedUse
     }));
 
     await Notification.insertMany(notifications);
-    console.log(`User deletion notification created for ${users.length} users`);
   } catch (error) {
     console.error('Error creating user deletion notification:', error);
   }
@@ -105,7 +104,6 @@ export const createTermAdditionNotification = async (termName, termDetails, admi
     }));
 
     await Notification.insertMany(notifications);
-    console.log(`Term addition notification created for ${users.length} users`);
   } catch (error) {
     console.error('Error creating term addition notification:', error);
   }
@@ -139,7 +137,6 @@ export const createUsernameChangeNotification = async (oldName, newName, userRol
     }));
 
     await Notification.insertMany(notifications);
-    console.log(`Username change notification created for ${users.length} users`);
   } catch (error) {
     console.error('Error creating username change notification:', error);
   }
