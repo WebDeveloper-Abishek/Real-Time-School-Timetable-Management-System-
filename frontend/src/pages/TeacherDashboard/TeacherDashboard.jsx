@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../Components/DashboardLayout/DashboardLayout';
+import { teacherNavigationSections } from '../../config/teacherNavigation';
 import './TeacherDashboard.css';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [dashboardData, setDashboardData] = useState({
     stats: {
       totalClasses: 5,
@@ -26,42 +28,6 @@ const TeacherDashboard = () => {
   };
 
   const go = (path) => () => navigate(path);
-
-  const navigationSections = [
-    {
-      title: 'My Teaching',
-      items: [
-        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
-        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
-        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
-        { label: 'Students', icon: '🎓', path: '/teacher/students' }
-      ]
-    },
-    {
-      title: 'Academic',
-      items: [
-        { label: 'Assignments', icon: '📝', path: '/teacher/assignments' },
-        { label: 'Exams', icon: '✍️', path: '/teacher/exams' },
-        { label: 'Grades', icon: '📊', path: '/teacher/grades' },
-        { label: 'Attendance', icon: '✅', path: '/teacher/attendance' }
-      ]
-    },
-    {
-      title: 'Leave & Duties',
-      items: [
-        { label: 'Leave Requests', icon: '🏖️', path: '/teacher/leaves' },
-        { label: 'Replacements', icon: '🔄', path: '/teacher/replacements' },
-        { label: 'Duties', icon: '⚡', path: '/teacher/duties' }
-      ]
-    },
-    {
-      title: 'Profile',
-      items: [
-        { label: 'Update Profile', icon: '✏️', path: '/teacher/profile', onClick: handleProfileUpdate },
-        { label: 'Settings', icon: '⚙️', path: '/teacher/settings' }
-      ]
-    }
-  ];
 
   if (loading) {
     return (
