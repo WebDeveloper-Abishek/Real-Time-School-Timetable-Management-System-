@@ -185,21 +185,46 @@ export const decideReplacement = async (req, res) => {
   } catch (e) { return res.status(500).json({ message: "Server error" }); }
 };
 
-// Get Teacher Timetable
+// Get Teacher Timetable - Based on ClassTimetable (shows which classes teacher should go to)
 export const getTeacherTimetable = async (req, res) => {
   try {
-    const { teacher_id } = req.query;
+    const { teacher_id, term_id } = req.query;
     if (!teacher_id) {
       return res.status(400).json({ message: "teacher_id is required" });
     }
     
-    const timetable = await TeacherTimetable.find({ teacher_id })
+    // Build query
+    const query = { teacher_id };
+    if (term_id) {
+      query.term_id = term_id;
+    }
+    
+    // Get timetable from ClassTimetable (where teacher is assigned)
+    const timetable = await ClassTimetable.find(query)
       .populate('class_id', 'class_name grade section')
       .populate('subject_id', 'subject_name')
-      .populate('slot_id', 'start_time end_time slot_number')
+      .populate('slot_id', 'start_time end_time slot_number slot_type')
+      .populate('term_id', 'term_number academic_year_id')
       .sort({ day_of_week: 1, 'slot_id.slot_number': 1 });
     
-    return res.json({ timetable });
+    // Transform to include all necessary information
+    const transformedTimetable = timetable.map(entry => ({
+      _id: entry._id,
+      day_of_week: entry.day_of_week,
+      class_id: entry.class_id,
+      subject_id: entry.subject_id,
+      teacher_id: entry.teacher_id,
+      slot_id: entry.slot_id,
+      term_id: entry.term_id,
+      is_double_period: entry.is_double_period || false,
+      // Include time info directly
+      period_index: entry.slot_id?.slot_number,
+      start_time: entry.slot_id?.start_time,
+      end_time: entry.slot_id?.end_time,
+      slot_type: entry.slot_id?.slot_type
+    }));
+    
+    return res.json({ timetable: transformedTimetable });
   } catch (e) {
     console.error('Error in getTeacherTimetable:', e);
     return res.status(500).json({ message: "Server error" });

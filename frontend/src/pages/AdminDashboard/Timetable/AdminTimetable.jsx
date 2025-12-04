@@ -4,7 +4,7 @@ import AdminLayout from '../../../Components/AdminLayout/AdminLayout';
 import './AdminTimetable.css';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8]; // Only academic periods 1-8
 
 const AdminTimetable = () => {
   const navigate = useNavigate();
@@ -47,9 +47,37 @@ const AdminTimetable = () => {
 
   const admintimetableFetchTerms = async () => {
     try {
+      // First try to get current term
+      try {
+        const currentTermR = await fetch('http://localhost:5000/api/admin/terms/current');
+        if (currentTermR.ok) {
+          const currentTerm = await currentTermR.json();
+          // Then fetch all terms
+          const allTermsR = await fetch('http://localhost:5000/api/admin/terms');
+          const allTerms = await allTermsR.json();
+          const termsArray = Array.isArray(allTerms) ? allTerms : [];
+          setAdmintimetableTerms(termsArray);
+          // Auto-select current term
+          if (currentTerm && currentTerm._id) {
+            setAdmintimetableSelectedTerm(currentTerm._id);
+          }
+          return;
+        }
+      } catch (e) {
+        console.log('Could not fetch current term, continuing with all terms...');
+      }
+      
+      // Fallback: fetch all terms
       const r = await fetch('http://localhost:5000/api/admin/terms');
       const data = await r.json();
-      setAdmintimetableTerms(Array.isArray(data) ? data : []);
+      const termsArray = Array.isArray(data) ? data : [];
+      setAdmintimetableTerms(termsArray);
+      
+      // Try to auto-select active term
+      const activeTerm = termsArray.find(t => t.is_active === true);
+      if (activeTerm && activeTerm._id) {
+        setAdmintimetableSelectedTerm(activeTerm._id);
+      }
     } catch (error) {
       admintimetableAddAlert('Error fetching terms', 'error');
     }

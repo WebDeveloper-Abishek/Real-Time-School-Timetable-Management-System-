@@ -4,6 +4,36 @@ import './StudentTimetable.css';
 
 const StudentTimetable = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const navigationSections = [
+    {
+      title: 'My Dashboard',
+      items: [
+        { label: 'Student Home', icon: '🏠', path: '/student/dashboard' },
+        { label: 'My Timetable', icon: '📅', path: '/student/timetable' },
+        { label: 'Assignments', icon: '📝', path: '/student/assignments' }
+      ]
+    },
+    {
+      title: 'Academic',
+      items: [
+        { label: 'Exams & Grades', icon: '📊', path: '/student/exams' },
+        { label: 'Attendance', icon: '✅', path: '/student/attendance' }
+      ]
+    },
+    {
+      title: 'Support',
+      items: [
+        { label: 'Counselling', icon: '🧠', path: '/student/counselling' }
+      ]
+    },
+    {
+      title: 'Profile',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/student/profile' }
+      ]
+    }
+  ];
   const [studenttimetableTimetable, setStudenttimetableTimetable] = useState([]);
   const [studenttimetableLoading, setStudenttimetableLoading] = useState(false);
   const [studenttimetableSelectedClass, setStudenttimetableSelectedClass] = useState('');
@@ -121,25 +151,6 @@ const StudentTimetable = () => {
     return 'studenttimetable-slot-period';
   };
 
-  const navigationSections = [
-    {
-      title: 'My Dashboard',
-      items: [
-        { label: 'Student Home', icon: '🏠', path: '/student/dashboard' },
-        { label: 'My Timetable', icon: '📅', path: '/student/timetable' },
-        { label: 'My Classes', icon: '📚', path: '/student/classes' },
-        { label: 'Assignments', icon: '📝', path: '/student/assignments' }
-      ]
-    },
-    {
-      title: 'Communication',
-      items: [
-        { label: 'Chat Center', icon: '💬', path: '/student/chat' },
-        { label: 'Messages', icon: '📧', path: '/student/messages' },
-        { label: 'Notifications', icon: '🔔', path: '/student/notifications' }
-      ]
-    }
-  ];
 
   return (
     <DashboardLayout

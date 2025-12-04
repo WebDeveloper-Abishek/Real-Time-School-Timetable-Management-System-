@@ -84,24 +84,6 @@ const TeacherTimetable = () => {
     return 'teachertimetable-slot-period';
   };
 
-  const navigationSections = [
-    {
-      title: 'My Teaching',
-      items: [
-        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
-        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
-        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
-        { label: 'Students', icon: '🎓', path: '/teacher/students' }
-      ]
-    },
-    {
-      title: 'Replacements',
-      items: [
-        { label: 'Replacement Requests', icon: '👨‍🏫', path: '/teacher/replacements' },
-        { label: 'My Replacements', icon: '📋', path: '/teacher/my-replacements' }
-      ]
-    }
-  ];
 
   return (
     <DashboardLayout
@@ -130,6 +112,13 @@ const TeacherTimetable = () => {
             <div className="teachertimetable-loading-spinner"></div>
             <p>Loading timetable...</p>
           </div>
+        ) : teachertimetableTimetable.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'white', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📅</div>
+            <h3 style={{ color: '#1e293b', marginBottom: '0.5rem' }}>No Timetable Found</h3>
+            <p style={{ color: '#64748b', marginBottom: '1rem' }}>Your timetable hasn't been generated yet.</p>
+            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>Please ask your administrator to generate timetables for your assigned classes.</p>
+          </div>
         ) : (
           <div className="teachertimetable-timetable-container">
             <div className="teachertimetable-timetable">
@@ -143,40 +132,50 @@ const TeacherTimetable = () => {
                 <div className="teachertimetable-day-column">Friday</div>
               </div>
 
-              {/* Timetable Rows (10 slots) */}
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(slotNumber => (
+              {/* Timetable Rows (Periods 1-8 only - Academic Periods) */}
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(slotNumber => (
                 <div key={slotNumber} className="teachertimetable-row">
                   {/* Time Column */}
                   <div className="teachertimetable-time-cell">
-                    {slotNumber === 1 && '07:00 - 07:30'}
-                    {slotNumber === 2 && '07:30 - 08:15'}
-                    {slotNumber === 3 && '08:15 - 09:00'}
-                    {slotNumber === 4 && '09:00 - 09:45'}
-                    {slotNumber === 5 && '09:45 - 10:30'}
-                    {slotNumber === 6 && '10:30 - 10:45'}
-                    {slotNumber === 7 && '10:45 - 11:30'}
-                    {slotNumber === 8 && '11:30 - 12:15'}
-                    {slotNumber === 9 && '12:15 - 13:00'}
-                    {slotNumber === 10 && '13:00 - 13:45'}
+                    {slotNumber === 1 && '07:30 - 08:15'}
+                    {slotNumber === 2 && '08:15 - 09:00'}
+                    {slotNumber === 3 && '09:00 - 09:45'}
+                    {slotNumber === 4 && '09:45 - 10:30'}
+                    {slotNumber === 5 && '10:45 - 11:30'}
+                    {slotNumber === 6 && '11:30 - 12:15'}
+                    {slotNumber === 7 && '12:15 - 13:00'}
+                    {slotNumber === 8 && '13:00 - 13:45'}
                   </div>
 
                   {/* Day Columns */}
                   {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => {
                     const slotInfo = teachertimetableGetSlotInfo(day, slotNumber);
-                    const slotType = teachertimetableGetSlotType(slotNumber);
-                    const slotColor = teachertimetableGetSlotColor(slotNumber, slotInfo.isEmpty);
+                    const isAcademicPeriod = slotNumber >= 1 && slotNumber <= 8;
+                    const isEmpty = slotInfo.isEmpty;
+                    const showFreeSlot = isEmpty && isAcademicPeriod;
                     
                     return (
-                      <div key={day} className={`teachertimetable-cell ${slotColor}`}>
-                        {slotInfo.isEmpty ? (
+                      <div key={day} className={`teachertimetable-cell ${isEmpty ? 'teachertimetable-slot-empty' : 'teachertimetable-slot-period'}`}>
+                        {isEmpty && showFreeSlot ? (
                           <div className="teachertimetable-empty-slot">
-                            <span className="teachertimetable-slot-type">{slotType}</span>
+                            <span className="teachertimetable-free-slot">Free Slot</span>
+                            <span className="teachertimetable-slot-type">Period {slotNumber}</span>
+                          </div>
+                        ) : isEmpty ? (
+                          <div className="teachertimetable-empty-slot">
+                            <span className="teachertimetable-slot-type">Period {slotNumber}</span>
                           </div>
                         ) : (
                           <div className="teachertimetable-filled-slot">
+                            {slotInfo.subject && (
+                              <div className="teachertimetable-subject">{slotInfo.subject}</div>
+                            )}
+                            {slotInfo.class && (
                             <div className="teachertimetable-class">{slotInfo.class}</div>
-                            <div className="teachertimetable-subject">{slotInfo.subject}</div>
+                            )}
+                            {slotInfo.time && (
                             <div className="teachertimetable-time">{slotInfo.time}</div>
+                            )}
                             {slotInfo.isDoublePeriod && (
                               <div className="teachertimetable-double-period">Double Period</div>
                             )}

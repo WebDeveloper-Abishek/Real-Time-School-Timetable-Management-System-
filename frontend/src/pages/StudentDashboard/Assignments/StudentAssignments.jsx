@@ -5,6 +5,37 @@ import './StudentAssignments.css';
 
 const StudentAssignments = () => {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const navigationSections = [
+    {
+      title: 'My Dashboard',
+      items: [
+        { label: 'Student Home', icon: '🏠', path: '/student/dashboard' },
+        { label: 'My Timetable', icon: '📅', path: '/student/timetable' },
+        { label: 'Assignments', icon: '📝', path: '/student/assignments' }
+      ]
+    },
+    {
+      title: 'Academic',
+      items: [
+        { label: 'Exams & Grades', icon: '📊', path: '/student/exams' },
+        { label: 'Attendance', icon: '✅', path: '/student/attendance' }
+      ]
+    },
+    {
+      title: 'Support',
+      items: [
+        { label: 'Counselling', icon: '🧠', path: '/student/counselling' }
+      ]
+    },
+    {
+      title: 'Profile',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/student/profile' }
+      ]
+    }
+  ];
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -16,13 +47,7 @@ const StudentAssignments = () => {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockAssignments = [
-        { id: 1, title: 'Mathematics Homework', subject: 'Mathematics', dueDate: '2024-12-25', status: 'pending', description: 'Complete exercises 1-10' },
-        { id: 2, title: 'Science Project', subject: 'Science', dueDate: '2024-12-30', status: 'pending', description: 'Research project on photosynthesis' },
-        { id: 3, title: 'English Essay', subject: 'English', dueDate: '2024-12-28', status: 'submitted', description: 'Write an essay on climate change' },
-      ];
-      setAssignments(mockAssignments);
+      setAssignments([]);
     } catch (error) {
       console.error('Error fetching assignments:', error);
     } finally {
@@ -34,17 +59,6 @@ const StudentAssignments = () => {
     ? assignments 
     : assignments.filter(a => a.status === filter);
 
-  const navigationSections = [
-    {
-      title: 'My Dashboard',
-      items: [
-        { label: 'Student Home', icon: '🏠', path: '/student/dashboard' },
-        { label: 'My Timetable', icon: '📅', path: '/student/timetable' },
-        { label: 'My Classes', icon: '📚', path: '/student/classes' },
-        { label: 'Assignments', icon: '📝', path: '/student/assignments' }
-      ]
-    }
-  ];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -60,7 +74,7 @@ const StudentAssignments = () => {
       pageTitle="My Assignments"
       pageDescription="View and manage your assignments"
       userRole="Student"
-      userName="Student User"
+      userName={user?.name || "Student User"}
       navigationSections={navigationSections}
     >
       <div className="studentassignments-container">

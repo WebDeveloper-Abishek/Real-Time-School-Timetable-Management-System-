@@ -3,26 +3,51 @@ import DashboardLayout from '../../../Components/DashboardLayout/DashboardLayout
 import './TeacherExams.css';
 
 const TeacherExams = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const navigationSections = [
+    {
+      title: 'MY TEACHING',
+      items: [
+        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
+        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
+        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
+        { label: 'Students', icon: '🎓', path: '/teacher/students' }
+      ]
+    },
+    {
+      title: 'ACADEMIC',
+      items: [
+        { label: 'Exams', icon: '✍️', path: '/teacher/exams' },
+        { label: 'Attendance', icon: '✅', path: '/teacher/attendance' }
+      ]
+    },
+    {
+      title: 'LEAVE & DUTIES',
+      items: [
+        { label: 'Leave Requests', icon: '🏖️', path: '/teacher/leaves' },
+        { label: 'Replacements', icon: '🔄', path: '/teacher/replacements' }
+      ]
+    },
+    {
+      title: 'PROFILE',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/teacher/profile' }
+      ]
+    }
+  ];
   const [exams, setExams] = useState([
     { id: 1, name: 'Mid-Term Exam', subject: 'Mathematics', date: '2025-01-15', status: 'upcoming' },
     { id: 2, name: 'Quiz Test', subject: 'Mathematics', date: '2024-12-20', status: 'completed' },
   ]);
 
-  const navigationSections = [
-    {
-      title: 'Academic',
-      items: [
-        { label: 'Exams', icon: '✍️', path: '/teacher/exams' }
-      ]
-    }
-  ];
 
   return (
     <DashboardLayout
       pageTitle="Exams"
       pageDescription="Manage exams and marks"
       userRole="Teacher"
-      userName="Teacher User"
+      userName={user?.name || "Teacher User"}
       navigationSections={navigationSections}
     >
       <div className="teacherexams-container">

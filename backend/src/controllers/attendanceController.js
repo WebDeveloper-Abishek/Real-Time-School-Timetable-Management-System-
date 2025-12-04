@@ -1,18 +1,44 @@
 import Attendance from "../models/Attendance.js";
 import UserClassAssignment from "../models/UserClassAssignment.js";
+import TeacherSubjectAssignment from "../models/TeacherSubjectAssignment.js";
 import TimetableSlot from "../models/TimetableSlot.js";
+import ClassTimetable from "../models/ClassTimetable.js";
 import Notification from "../models/Notification.js";
 import StudentParentLink from "../models/StudentParentLink.js";
+import User from "../models/User.js";
 
-// Mark attendance for a class period
+// Mark attendance for a class period (Class Teacher)
 export const markAttendance = async (req, res) => {
   try {
     const { class_id, term_id, date, period_index, attendance_data } = req.body;
-    const teacher_id = req.user.id; // From JWT token
+    const teacher_id = req.user?.id || req.user?._id;
 
     // Validate input
     if (!class_id || !term_id || !date || !period_index || !attendance_data) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Verify that this teacher is the class teacher for this class
+    const classTeacherAssignment = await UserClassAssignment.findOne({
+      user_id: teacher_id,
+      class_id: class_id,
+      is_class_teacher: true
+    });
+
+    if (!classTeacherAssignment) {
+      return res.status(403).json({ 
+        message: "You are not authorized to mark attendance for this class. Only the class teacher can mark attendance." 
+      });
+    }
+
+    // Find or get the timetable slot for this period
+    const slot = await TimetableSlot.findOne({ 
+      slot_number: parseInt(period_index),
+      is_active: true 
+    });
+
+    if (!slot) {
+      return res.status(400).json({ message: `Period ${period_index} slot not found. Please ensure timetable slots are initialized.` });
     }
 
     const results = [];
@@ -20,19 +46,19 @@ export const markAttendance = async (req, res) => {
 
     // Mark attendance for each student
     for (const studentAttendance of attendance_data) {
-      const { student_id, status, remarks } = studentAttendance;
+      const { student_id, status } = studentAttendance;
 
-      // Check if attendance already exists for this student, date, and period
+      // Check if attendance already exists for this student, date, and slot (class teacher attendance)
       const existingAttendance = await Attendance.findOne({
         student_id,
+        slot_id: slot._id,
         date: markedDate,
-        period_index
+        attendance_type: 'class_teacher'
       });
 
       if (existingAttendance) {
         // Update existing attendance
         existingAttendance.status = status;
-        existingAttendance.remarks = remarks;
         existingAttendance.marked_by = teacher_id;
         await existingAttendance.save();
         results.push({ student_id, status: 'updated', attendance: existingAttendance });
@@ -40,20 +66,19 @@ export const markAttendance = async (req, res) => {
         // Create new attendance record
         const newAttendance = await Attendance.create({
           student_id,
-          class_id,
-          term_id,
+          slot_id: slot._id,
+          class_id: class_id,
           date: markedDate,
-          period_index,
           status,
-          remarks,
-          marked_by: teacher_id
+          marked_by: teacher_id,
+          attendance_type: 'class_teacher'
         });
         results.push({ student_id, status: 'created', attendance: newAttendance });
       }
 
       // Send notification for absent/late students
       if (status === 'Absent' || status === 'Late') {
-        await sendAbsenceNotification(student_id, markedDate, period_index, status);
+        await sendAbsenceNotification(student_id, markedDate, slot.slot_number, status);
       }
     }
 
@@ -65,14 +90,212 @@ export const markAttendance = async (req, res) => {
 
   } catch (error) {
     console.error('Error marking attendance:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Mark attendance for a subject (Subject Teacher)
+export const markSubjectAttendance = async (req, res) => {
+  try {
+    const { class_id, subject_id, term_id, date, period_index, attendance_data } = req.body;
+    const teacher_id = req.user?.id || req.user?._id;
+
+    // Validate input
+    if (!class_id || !subject_id || !term_id || !date || !period_index || !attendance_data) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Verify that this teacher is assigned to teach this subject for this class
+    const subjectAssignment = await TeacherSubjectAssignment.findOne({
+      user_id: teacher_id,
+      class_id: class_id,
+      subject_id: subject_id
+    });
+
+    if (!subjectAssignment) {
+      return res.status(403).json({ 
+        message: "You are not authorized to mark attendance for this subject. You must be assigned to teach this subject for this class." 
+      });
+    }
+
+    // Get the day of week from the date
+    const markedDate = new Date(date);
+    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][markedDate.getDay()];
+
+    // Find the timetable slot for this period
+    const slot = await TimetableSlot.findOne({ 
+      slot_number: parseInt(period_index),
+      is_active: true 
+    });
+
+    if (!slot) {
+      return res.status(400).json({ message: `Period ${period_index} slot not found. Please ensure timetable slots are initialized.` });
+    }
+
+    // Verify this subject is scheduled for this class, slot, and day
+    const classTimetable = await ClassTimetable.findOne({
+      class_id: class_id,
+      slot_id: slot._id,
+      subject_id: subject_id,
+      day_of_week: dayOfWeek,
+      term_id: term_id
+    });
+
+    if (!classTimetable) {
+      return res.status(400).json({ 
+        message: `This subject is not scheduled for ${dayOfWeek} period ${period_index} for this class.` 
+      });
+    }
+
+    const results = [];
+
+    // Mark attendance for each student
+    for (const studentAttendance of attendance_data) {
+      const { student_id, status } = studentAttendance;
+
+      // Check if attendance already exists for this student, date, slot, and subject
+      const existingAttendance = await Attendance.findOne({
+        student_id,
+        slot_id: slot._id,
+        date: markedDate,
+        subject_id: subject_id,
+        attendance_type: 'subject_teacher'
+      });
+
+      if (existingAttendance) {
+        // Update existing attendance
+        existingAttendance.status = status;
+        existingAttendance.marked_by = teacher_id;
+        await existingAttendance.save();
+        results.push({ student_id, status: 'updated', attendance: existingAttendance });
+      } else {
+        // Create new attendance record
+        const newAttendance = await Attendance.create({
+          student_id,
+          slot_id: slot._id,
+          class_id: class_id,
+          subject_id: subject_id,
+          date: markedDate,
+          status,
+          marked_by: teacher_id,
+          attendance_type: 'subject_teacher'
+        });
+        results.push({ student_id, status: 'created', attendance: newAttendance });
+      }
+
+      // Send notification for absent/late students
+      if (status === 'Absent' || status === 'Late') {
+        await sendAbsenceNotification(student_id, markedDate, slot.slot_number, status);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Subject attendance marked successfully',
+      results 
+    });
+
+  } catch (error) {
+    console.error('Error marking subject attendance:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get teacher's subject assignments for attendance marking
+export const getTeacherSubjectAssignments = async (req, res) => {
+  try {
+    const teacher_id = req.user?.id || req.user?._id;
+
+    if (!teacher_id) {
+      return res.status(400).json({ message: "Teacher ID is required" });
+    }
+
+    // Get all subject assignments for this teacher
+    const assignments = await TeacherSubjectAssignment.find({ user_id: teacher_id })
+      .populate('class_id', 'class_name grade section term_id')
+      .populate('subject_id', 'subject_name')
+      .populate({
+        path: 'class_id',
+        populate: {
+          path: 'term_id',
+          select: 'term_number academic_year_id',
+          populate: {
+            path: 'academic_year_id',
+            select: 'year_label'
+          }
+        }
+      })
+      .sort({ 'class_id.class_name': 1, 'subject_id.subject_name': 1 });
+
+    // Format the response
+    const formattedAssignments = assignments.map(assignment => ({
+      id: assignment._id,
+      class_id: assignment.class_id._id,
+      class_name: assignment.class_id.class_name,
+      grade: assignment.class_id.grade,
+      section: assignment.class_id.section,
+      subject_id: assignment.subject_id._id,
+      subject_name: assignment.subject_id.subject_name,
+      term: assignment.class_id.term_id
+    }));
+
+    res.json(formattedAssignments);
+
+  } catch (error) {
+    console.error('Error getting teacher subject assignments:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get students for subject attendance marking
+export const getSubjectClassStudents = async (req, res) => {
+  try {
+    const { class_id, teacher_id } = req.query;
+    const teacherId = teacher_id || req.user?.id || req.user?._id;
+
+    if (!class_id) {
+      return res.status(400).json({ message: "Class ID is required" });
+    }
+
+    if (!teacherId) {
+      return res.status(400).json({ message: "Teacher ID is required" });
+    }
+
+    // Get all students in this class
+    const studentAssignments = await UserClassAssignment.find({ 
+      class_id: class_id,
+      is_class_teacher: false // Students are not class teachers
+    })
+      .populate({
+        path: 'user_id',
+        match: { role: 'Student', is_deleted: { $ne: true } },
+        select: 'name _id'
+      });
+
+    // Filter out null users and format students
+    const validStudents = studentAssignments
+      .filter(assignment => assignment.user_id !== null)
+      .map((assignment, index) => {
+        return {
+          id: assignment.user_id._id,
+          name: assignment.user_id.name,
+          rollNumber: String(index + 1).padStart(3, '0')
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json(validStudents);
+
+  } catch (error) {
+    console.error('Error getting subject class students:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
 // Get attendance for a class on a specific date
 export const getClassAttendance = async (req, res) => {
   try {
-    const { class_id, date, period_index } = req.query;
+    const { class_id, date, period_index, subject_id } = req.query;
 
     if (!class_id || !date) {
       return res.status(400).json({ message: "Missing required parameters" });
@@ -84,15 +307,26 @@ export const getClassAttendance = async (req, res) => {
     };
 
     if (period_index) {
-      query.period_index = parseInt(period_index);
+      // Find slot by period number
+      const slot = await TimetableSlot.findOne({ 
+        slot_number: parseInt(period_index),
+        is_active: true 
+      });
+      if (slot) {
+        query.slot_id = slot._id;
+      }
+    }
+
+    if (subject_id) {
+      query.subject_id = subject_id;
     }
 
     const attendance = await Attendance.find(query)
       .populate('student_id', 'name')
       .populate('subject_id', 'subject_name')
-      .populate('teacher_id', 'name')
+      .populate('slot_id', 'slot_number')
       .populate('marked_by', 'name')
-      .sort({ period_index: 1, 'student_id.name': 1 });
+      .sort({ 'student_id.name': 1 });
 
     res.json({ success: true, attendance });
 
@@ -107,14 +341,30 @@ export const getStudentAttendance = async (req, res) => {
   try {
     const { student_id, term_id, start_date, end_date, view_type } = req.query;
 
-    if (!student_id || !term_id) {
-      return res.status(400).json({ message: "Missing required parameters" });
+    if (!student_id) {
+      return res.status(400).json({ message: "Missing required parameters: student_id" });
     }
 
     const query = {
-      student_id,
-      term_id
+      student_id
     };
+
+    // If term_id is provided, filter by class_id that belongs to that term
+    if (term_id) {
+      // Get student's class assignment to find class_id
+      const studentClass = await UserClassAssignment.findOne({ 
+        user_id: student_id,
+        is_class_teacher: false 
+      }).populate('class_id');
+      
+      if (studentClass && studentClass.class_id) {
+        // Verify the class belongs to the specified term
+        const classTermId = studentClass.class_id.term_id?.toString() || studentClass.class_id.term_id;
+        if (classTermId === term_id.toString()) {
+          query.class_id = studentClass.class_id._id;
+        }
+      }
+    }
 
     if (start_date && end_date) {
       query.date = {
@@ -125,8 +375,10 @@ export const getStudentAttendance = async (req, res) => {
 
     const attendance = await Attendance.find(query)
       .populate('subject_id', 'subject_name')
-      .populate('teacher_id', 'name')
-      .sort({ date: -1, period_index: 1 });
+      .populate('slot_id', 'slot_number')
+      .populate('marked_by', 'name')
+      .populate('class_id', 'class_name')
+      .sort({ date: -1 });
 
     // Process data based on view type
     let processedData = attendance;
@@ -231,7 +483,7 @@ export const getChildAttendance = async (req, res) => {
   try {
     const { parent_id, child_id, term_id, start_date, end_date, view_type } = req.query;
 
-    if (!parent_id || !child_id || !term_id) {
+    if (!parent_id || !child_id) {
       return res.status(400).json({ message: "Missing required parameters" });
     }
 
@@ -246,9 +498,25 @@ export const getChildAttendance = async (req, res) => {
     }
 
     const query = {
-      student_id: child_id,
-      term_id
+      student_id: child_id
     };
+
+    // If term_id is provided, filter by class_id that belongs to that term
+    if (term_id) {
+      // Get student's class assignment to find class_id
+      const studentClass = await UserClassAssignment.findOne({ 
+        user_id: child_id,
+        is_class_teacher: false 
+      }).populate('class_id');
+      
+      if (studentClass && studentClass.class_id) {
+        // Verify the class belongs to the specified term
+        const classTermId = studentClass.class_id.term_id?.toString() || studentClass.class_id.term_id;
+        if (classTermId === term_id.toString()) {
+          query.class_id = studentClass.class_id._id;
+        }
+      }
+    }
 
     if (start_date && end_date) {
       query.date = {
@@ -259,9 +527,10 @@ export const getChildAttendance = async (req, res) => {
 
     const attendance = await Attendance.find(query)
       .populate('subject_id', 'subject_name')
-      .populate('teacher_id', 'name')
+      .populate('slot_id', 'slot_number')
+      .populate('marked_by', 'name')
       .populate('class_id', 'class_name')
-      .sort({ date: -1, period_index: 1 });
+      .sort({ date: -1 });
 
     // Process data based on view type
     let processedData = attendance;

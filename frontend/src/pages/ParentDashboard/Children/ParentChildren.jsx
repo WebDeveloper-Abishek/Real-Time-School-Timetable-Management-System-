@@ -1,18 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../../Components/DashboardLayout/DashboardLayout';
 import './ParentChildren.css';
 
 const ParentChildren = () => {
-  const [children] = useState([
-    { id: 1, name: 'John Smith', class_name: '8A', grade: 'A' },
-    { id: 2, name: 'Jane Smith', class_name: '6B', grade: 'A+' },
-  ]);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [children, setChildren] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchChildren();
+  }, []);
+
+  const fetchChildren = async () => {
+    try {
+      setLoading(true);
+      const { parentAPI } = await import('../../../services/api');
+      const response = await parentAPI.getParentChildren();
+
+      if (response?.success) {
+        setChildren(response.children || []);
+      }
+    } catch (error) {
+      console.error('Error fetching children:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const navigationSections = [
     {
       title: 'My Children',
       items: [
-        { label: 'My Children', icon: '👨‍👩‍👧‍👦', path: '/parent/children' }
+        { label: 'Parent Home', icon: '🏠', path: '/parent/dashboard' },
+        { label: 'My Children', icon: '👨‍👩‍👧‍👦', path: '/parent/children' },
+        { label: 'Attendance', icon: '✅', path: '/parent/attendance' }
+      ]
+    },
+    {
+      title: 'Profile',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/parent/profile' }
       ]
     }
   ];
@@ -22,19 +49,26 @@ const ParentChildren = () => {
       pageTitle="My Children"
       pageDescription="View your children's information"
       userRole="Parent"
-      userName="Parent User"
+      userName={user?.name || "Parent User"}
       navigationSections={navigationSections}
     >
       <div className="parentchildren-container">
         <div className="parentchildren-grid">
-          {children.map((child) => (
-            <div key={child.id} className="parentchildren-card">
-              <h3>{child.name}</h3>
-              <p>Class: {child.class_name}</p>
-              <p>Grade: {child.grade}</p>
-              <button className="parentchildren-btn">View Details</button>
-            </div>
-          ))}
+          {loading ? (
+            <div className="parentchildren-loading">Loading children...</div>
+          ) : children.length === 0 ? (
+            <div className="parentchildren-empty">No children linked to your account.</div>
+          ) : (
+            children.map((child) => (
+              <div key={child._id || child.id} className="parentchildren-card">
+                <div className="parentchildren-avatar">👶</div>
+                <h3>{child.name}</h3>
+                <p>Class: {child.class_name || 'Not Assigned'}</p>
+                <p>Role: {child.role}</p>
+                <button className="parentchildren-btn">View Details</button>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </DashboardLayout>

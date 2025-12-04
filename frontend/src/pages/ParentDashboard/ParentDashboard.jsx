@@ -1,28 +1,105 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../Components/DashboardLayout/DashboardLayout';
+import ProfileUpdateModal from '../../Components/ProfileUpdateModal/ProfileUpdateModal';
 import './ParentDashboard.css';
 
 const ParentDashboard = () => {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [dashboardData, setDashboardData] = useState({
     stats: {
-      totalChildren: 2,
-      averageAttendance: 96,
-      upcomingMeetings: 1,
-      unreadMessages: 4
+      totalChildren: 0,
+      averageAttendance: 0,
+      upcomingMeetings: 0,
+      unreadMessages: 0
     }
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
-    // Fetch dashboard data
-    setLoading(false);
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const userId = user?.id || user?._id;
+      
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      const stats = {
+        totalChildren: 0,
+        averageAttendance: 0,
+        upcomingMeetings: 0,
+        unreadMessages: 0
+      };
+
+      try {
+        const { parentAPI } = await import('../../services/api');
+        const childrenResponse = await parentAPI.getParentChildren();
+        
+        if (childrenResponse?.success) {
+          const children = childrenResponse.children || [];
+          stats.totalChildren = children.length;
+          
+          if (children.length > 0) {
+            let totalAttendance = 0;
+            let count = 0;
+            
+            for (const child of children) {
+              try {
+                const attendanceResponse = await fetch(`http://localhost:5000/api/attendance/student?student_id=${child._id || child.id}`, {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                  }
+                });
+                
+                if (attendanceResponse.ok) {
+                  const attendanceData = await attendanceResponse.json();
+                  if (attendanceData?.statistics?.presentPercentage) {
+                    totalAttendance += parseFloat(attendanceData.statistics.presentPercentage);
+                    count++;
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching child attendance:', error);
+              }
+            }
+            
+            stats.averageAttendance = count > 0 ? Math.round(totalAttendance / count) : 0;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching children:', error);
+      }
+
+      setDashboardData({ stats });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProfileUpdate = () => {
     setShowProfileModal(true);
+  };
+
+  const handleProfileClose = () => {
+    setShowProfileModal(false);
+  };
+
+  const handleProfileUpdated = (updatedUser) => {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const updatedUserData = { ...currentUser, ...updatedUser };
+    localStorage.setItem('user', JSON.stringify(updatedUserData));
+    setShowProfileModal(false);
   };
 
   const go = (path) => () => navigate(path);
@@ -38,18 +115,9 @@ const ParentDashboard = () => {
       ]
     },
     {
-      title: 'Communication',
-      items: [
-        { label: 'Messages', icon: '💬', path: '/parent/messages' },
-        { label: 'Meetings', icon: '🤝', path: '/parent/meetings' },
-        { label: 'Notifications', icon: '🔔', path: '/parent/notifications' }
-      ]
-    },
-    {
       title: 'Profile',
       items: [
         { label: 'Update Profile', icon: '✏️', path: '/parent/profile', onClick: handleProfileUpdate },
-        { label: 'Settings', icon: '⚙️', path: '/parent/settings' }
       ]
     }
   ];
@@ -60,7 +128,7 @@ const ParentDashboard = () => {
         pageTitle="Parent Dashboard"
         pageDescription="Loading dashboard data..."
         userRole="Parent"
-        userName="Parent User"
+        userName={user?.name || "Parent User"}
         navigationSections={navigationSections}
       >
         <div className="parentdash-loading-container">
@@ -75,7 +143,7 @@ const ParentDashboard = () => {
       pageTitle="Parent Dashboard"
       pageDescription="Welcome back! Here's your family's educational journey."
       userRole="Parent"
-      userName="Parent User"
+      userName={user?.name || "Parent User"}
       navigationSections={navigationSections}
     >
       {/* Quick Stats Cards */}
@@ -219,6 +287,12 @@ const ParentDashboard = () => {
           </div>
         </div>
       </section>
+
+      <ProfileUpdateModal
+        isOpen={showProfileModal}
+        onClose={handleProfileClose}
+        onUpdate={handleProfileUpdated}
+      />
     </DashboardLayout>
   );
 };

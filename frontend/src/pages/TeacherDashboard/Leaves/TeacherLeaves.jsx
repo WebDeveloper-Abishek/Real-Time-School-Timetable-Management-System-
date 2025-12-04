@@ -6,6 +6,38 @@ import './TeacherLeaves.css';
 const TeacherLeaves = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const navigationSections = [
+    {
+      title: 'MY TEACHING',
+      items: [
+        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
+        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
+        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
+        { label: 'Students', icon: '🎓', path: '/teacher/students' }
+      ]
+    },
+    {
+      title: 'ACADEMIC',
+      items: [
+        { label: 'Exams', icon: '✍️', path: '/teacher/exams' },
+        { label: 'Attendance', icon: '✅', path: '/teacher/attendance' }
+      ]
+    },
+    {
+      title: 'LEAVE & DUTIES',
+      items: [
+        { label: 'Leave Requests', icon: '🏖️', path: '/teacher/leaves' },
+        { label: 'Replacements', icon: '🔄', path: '/teacher/replacements' }
+      ]
+    },
+    {
+      title: 'PROFILE',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/teacher/profile' }
+      ]
+    }
+  ];
   const [teacherleavesTerms, setTeacherleavesTerms] = useState([]);
   const [teacherleavesList, setTeacherleavesList] = useState([]);
   const [teacherleavesLoading, setTeacherleavesLoading] = useState(false);
@@ -29,45 +61,30 @@ const TeacherLeaves = () => {
     }, 5000);
   };
 
+
   const teacherleavesFetchTerms = async () => {
     try {
       const token = localStorage.getItem('token') || '';
-      const r = await fetch('http://localhost:5000/api/teacher/terms', {
+      // Fetch current term directly from API
+      const r = await fetch('http://localhost:5000/api/teacher/terms/current', {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
-      if (!r.ok) {
-        const errorText = await r.text();
-        throw new Error(`Failed to fetch terms: ${r.status} ${r.statusText}`);
-      }
-      const data = await r.json();
-      const terms = Array.isArray(data) ? data : [];
-      setTeacherleavesTerms(terms);
       
-      // Automatically set the current active term
-      const currentTerm = terms.find(term => term.is_active === true);
-      if (currentTerm) {
-        setTeacherleavesForm(prev => ({
-          ...prev,
-          term_id: currentTerm._id
-        }));
-      } else if (terms.length > 0) {
-        // If no active term, use the most recent one
-        const sortedTerms = [...terms].sort((a, b) => {
-          const dateA = new Date(a.start_date || a.createdAt || 0);
-          const dateB = new Date(b.start_date || b.createdAt || 0);
-          return dateB - dateA;
-        });
-        setTeacherleavesForm(prev => ({
-          ...prev,
-          term_id: sortedTerms[0]._id
-        }));
+      if (r.ok) {
+        const currentTerm = await r.json();
+        if (currentTerm && currentTerm._id) {
+          setTeacherleavesTerms([currentTerm]);
+          setTeacherleavesForm(prev => ({
+            ...prev,
+            term_id: currentTerm._id
+          }));
+        }
       }
     } catch (error) {
-      console.error('Error fetching terms:', error);
-      teacherleavesAddAlert('Error fetching terms: ' + (error.message || 'Unknown error'), 'error');
+      teacherleavesAddAlert('Error fetching current term', 'error');
     }
   };
 
@@ -76,7 +93,17 @@ const TeacherLeaves = () => {
       setTeacherleavesLoading(true);
       const userId = user.id || user._id;
       const token = localStorage.getItem('token') || '';
-      const r = await fetch(`http://localhost:5000/api/teacher/leaves?user_id=${userId}`, {
+      
+      // Get current term ID from terms list (should be the first one as we only store current term)
+      const currentTermId = teacherleavesTerms.length > 0 ? teacherleavesTerms[0]?._id : null;
+      
+      // Build URL with term filter to reduce data transfer
+      let url = `http://localhost:5000/api/teacher/leaves?user_id=${userId}`;
+      if (currentTermId) {
+        url += `&term_id=${currentTermId}`;
+      }
+      
+      const r = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
@@ -94,6 +121,8 @@ const TeacherLeaves = () => {
         const dateB = new Date(b.createdAt || b.created_at || 0);
         return dateB - dateA;
       });
+      
+      // Update the list
       setTeacherleavesList(leaves);
     } catch (error) {
       console.error('Error fetching leaves:', error);
@@ -105,9 +134,30 @@ const TeacherLeaves = () => {
   };
 
   useEffect(() => {
-    teacherleavesFetchTerms();
-    teacherleavesFetchLeaves();
+    const initialize = async () => {
+      await teacherleavesFetchTerms();
+      // Fetch leaves will happen after terms are loaded
+    };
+    initialize();
   }, []);
+
+  // Fetch leaves when terms are loaded
+  useEffect(() => {
+    if (teacherleavesTerms.length > 0) {
+      teacherleavesFetchLeaves();
+    }
+  }, [teacherleavesTerms]);
+
+  // Refresh only when page regains focus (manual refresh)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (teacherleavesTerms.length > 0) {
+        teacherleavesFetchLeaves();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [teacherleavesTerms]);
 
   const teacherleavesRequestLeave = async (e) => {
     e.preventDefault();
@@ -149,14 +199,16 @@ const TeacherLeaves = () => {
         throw new Error(errorData.message || 'Failed to submit leave request');
       }
       
-      teacherleavesAddAlert('Leave request submitted successfully', 'success');
+      teacherleavesAddAlert('Leave request submitted successfully! Admin will review your request.', 'success');
       setTeacherleavesShowModal(false);
+      // Keep term_id but reset other fields
+      const currentTermId = teacherleavesForm.term_id;
       setTeacherleavesForm({
         start_date: '',
         end_date: '',
         type: 'FULL_DAY',
         reason: '',
-        term_id: ''
+        term_id: currentTermId // Keep the current term
       });
       await teacherleavesFetchLeaves();
     } catch (error) {
@@ -166,12 +218,20 @@ const TeacherLeaves = () => {
     }
   };
 
+  const teacherleavesGetStatus = (leave) => {
+    // Check status: use status field if available, otherwise determine from approved and reason
+    if (leave.status) return leave.status;
+    if (leave.approved === true) return 'APPROVED';
+    if (leave.reason && leave.reason.includes('[REJECTED:')) return 'REJECTED';
+    return 'PENDING';
+  };
+
   const teacherleavesGetFilteredLeaves = () => {
     let filtered = teacherleavesList;
     
     if (teacherleavesFilterStatus !== 'ALL') {
       filtered = filtered.filter(leave => {
-        const status = leave.approved === true ? 'APPROVED' : (leave.approved === false && leave.createdAt ? 'PENDING' : 'PENDING');
+        const status = teacherleavesGetStatus(leave);
         return status === teacherleavesFilterStatus;
       });
     }
@@ -179,19 +239,22 @@ const TeacherLeaves = () => {
     return filtered;
   };
 
-  const teacherleavesGetStatusColor = (approved) => {
-    if (approved === true) return 'teacherleaves-status-approved';
+  const teacherleavesGetStatusColor = (leave) => {
+    const status = teacherleavesGetStatus(leave);
+    if (status === 'APPROVED') return 'teacherleaves-status-approved';
+    if (status === 'REJECTED') return 'teacherleaves-status-rejected';
     return 'teacherleaves-status-pending';
   };
 
-  const teacherleavesGetStatusIcon = (approved) => {
-    if (approved === true) return '✅';
+  const teacherleavesGetStatusIcon = (leave) => {
+    const status = teacherleavesGetStatus(leave);
+    if (status === 'APPROVED') return '✅';
+    if (status === 'REJECTED') return '❌';
     return '⏳';
   };
 
-  const teacherleavesGetStatusLabel = (approved) => {
-    if (approved === true) return 'APPROVED';
-    return 'PENDING';
+  const teacherleavesGetStatusLabel = (leave) => {
+    return teacherleavesGetStatus(leave);
   };
 
   const teacherleavesGetLeaveTypeLabel = (leave) => {
@@ -237,27 +300,38 @@ const TeacherLeaves = () => {
     }
   };
 
+  const teacherleavesHandleDelete = async (leaveId) => {
+    if (!window.confirm('Are you sure you want to delete this leave request? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setTeacherleavesLoading(true);
+      const token = localStorage.getItem('token') || '';
+      const response = await fetch(`http://localhost:5000/api/teacher/leaves/${leaveId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete leave request');
+      }
+
+      teacherleavesAddAlert('Leave request deleted successfully!', 'success');
+      await teacherleavesFetchLeaves(); // Refresh the list
+    } catch (error) {
+      teacherleavesAddAlert(error.message || 'Error deleting leave request', 'error');
+    } finally {
+      setTeacherleavesLoading(false);
+    }
+  };
+
   const filteredLeaves = teacherleavesGetFilteredLeaves();
 
-  const navigationSections = [
-    {
-      title: 'My Teaching',
-      items: [
-        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
-        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
-        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
-        { label: 'Students', icon: '🎓', path: '/teacher/students' }
-      ]
-    },
-    {
-      title: 'Leave & Duties',
-      items: [
-        { label: 'Leave Requests', icon: '🏖️', path: '/teacher/leaves' },
-        { label: 'Replacements', icon: '🔄', path: '/teacher/replacements' },
-        { label: 'Duties', icon: '⚡', path: '/teacher/duties' }
-      ]
-    }
-  ];
 
   return (
     <DashboardLayout
@@ -285,6 +359,14 @@ const TeacherLeaves = () => {
           </div>
           <div className="teacherleaves-header-right">
             <button
+              className="teacherleaves-btn-secondary"
+              onClick={teacherleavesFetchLeaves}
+              disabled={teacherleavesLoading}
+              title="Refresh to see latest status updates from admin"
+            >
+              {teacherleavesLoading ? '⏳ Refreshing...' : '🔄 Refresh'}
+            </button>
+            <button
               className="teacherleaves-btn teacherleaves-btn-primary"
               onClick={() => setTeacherleavesShowModal(true)}
             >
@@ -300,7 +382,7 @@ const TeacherLeaves = () => {
               <div className="teacherleaves-stat-icon">⏳</div>
               <div className="teacherleaves-stat-content">
                 <h3 className="teacherleaves-stat-value">
-                  {teacherleavesList.filter(l => !l.approved).length}
+                  {teacherleavesList.filter(l => teacherleavesGetStatus(l) === 'PENDING').length}
                 </h3>
                 <p className="teacherleaves-stat-label">Pending Requests</p>
               </div>
@@ -310,7 +392,7 @@ const TeacherLeaves = () => {
               <div className="teacherleaves-stat-icon">✅</div>
               <div className="teacherleaves-stat-content">
                 <h3 className="teacherleaves-stat-value">
-                  {teacherleavesList.filter(l => l.approved === true).length}
+                  {teacherleavesList.filter(l => teacherleavesGetStatus(l) === 'APPROVED').length}
                 </h3>
                 <p className="teacherleaves-stat-label">Approved</p>
               </div>
@@ -341,6 +423,7 @@ const TeacherLeaves = () => {
               <option value="ALL">All Status</option>
               <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
             </select>
           </div>
           
@@ -355,7 +438,9 @@ const TeacherLeaves = () => {
         <div className="teacherleaves-list-section">
           <div className="teacherleaves-list-header">
             <h2 className="teacherleaves-list-title">My Requests</h2>
-            <p className="teacherleaves-list-subtitle">All your leave requests are listed below</p>
+            <p className="teacherleaves-list-subtitle">
+              All your leave requests are listed below. Status updates from admin appear automatically.
+            </p>
           </div>
           
           {teacherleavesLoading ? (
@@ -385,8 +470,8 @@ const TeacherLeaves = () => {
                         </span>
                       </div>
                     </div>
-                    <div className={`teacherleaves-status-badge ${teacherleavesGetStatusColor(leave.approved)}`}>
-                      {teacherleavesGetStatusIcon(leave.approved)} {teacherleavesGetStatusLabel(leave.approved)}
+                    <div className={`teacherleaves-status-badge ${teacherleavesGetStatusColor(leave)} teacherleaves-status-badge-animated`}>
+                      {teacherleavesGetStatusIcon(leave)} {teacherleavesGetStatusLabel(leave)}
                     </div>
                   </div>
 
@@ -409,7 +494,7 @@ const TeacherLeaves = () => {
                           <div className="teacherleaves-info-content">
                             <span className="teacherleaves-info-label">Term</span>
                             <span className="teacherleaves-info-value">
-                              Term {leave.term_id?.term_number || 'N/A'}
+                              Current Term
                             </span>
                           </div>
                         </div>
@@ -450,11 +535,32 @@ const TeacherLeaves = () => {
                           <span className="teacherleaves-info-icon">💬</span>
                           <div className="teacherleaves-info-content">
                             <span className="teacherleaves-info-label">Reason</span>
-                            <span className="teacherleaves-info-value">{leave.reason}</span>
+                            <span className="teacherleaves-info-value">
+                              {leave.reason.includes('[REJECTED:') 
+                                ? leave.reason.substring(0, leave.reason.indexOf('[REJECTED:')) 
+                                : leave.reason}
+                            </span>
+                            {leave.reason.includes('[REJECTED:') && (
+                              <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fee2e2', borderRadius: '4px', fontSize: '0.875rem' }}>
+                                <strong>Rejection Reason:</strong> {leave.reason.substring(leave.reason.indexOf('[REJECTED:') + 10, leave.reason.lastIndexOf(']'))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Card Footer with Delete Button */}
+                  <div className="teacherleaves-card-footer">
+                    <button
+                      className="teacherleaves-btn-delete"
+                      onClick={() => teacherleavesHandleDelete(leave._id)}
+                      disabled={teacherleavesLoading}
+                      title="Delete this leave request"
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -479,23 +585,17 @@ const TeacherLeaves = () => {
               <form onSubmit={teacherleavesRequestLeave} className="teacherleaves-modal-form">
                 <div className="teacherleaves-form-group">
                   <label htmlFor="teacherleaves-term-select">Current Term *</label>
-                  <select
+                  <input
+                    type="text"
                     id="teacherleaves-term-select"
-                    value={teacherleavesForm.term_id}
-                    onChange={(e) => setTeacherleavesForm({...teacherleavesForm, term_id: e.target.value})}
-                    className="teacherleaves-form-select"
-                    required
-                    disabled={!teacherleavesForm.term_id}
-                  >
-                    <option value="">{teacherleavesForm.term_id ? 'Loading...' : 'Loading current term...'}</option>
-                    {teacherleavesTerms.map(term => (
-                      <option key={term._id} value={term._id}>
-                        Term {term.term_number} - {term.academic_year_id?.year_label || ''} {term.is_active ? '(Current)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    value="Current Term (Auto-selected)"
+                    className="teacherleaves-form-input"
+                    disabled
+                    readOnly
+                    style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                  />
                   <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    Current active term is automatically selected
+                    Leave requests are automatically assigned to the current active term
                   </small>
                 </div>
                 

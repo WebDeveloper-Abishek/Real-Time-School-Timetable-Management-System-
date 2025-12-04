@@ -31,13 +31,8 @@ const LoginPage = () => {
     setError('');
 
     try {
-      console.log('Attempting login with:', { username: formData.username });
-      
-      // Use full backend URL
       const backendUrl = 'http://localhost:5000';
       const loginUrl = `${backendUrl}/api/auth/login`;
-      
-      console.log('Calling backend URL:', loginUrl);
       
       const response = await fetch(loginUrl, {
         method: 'POST',
@@ -49,8 +44,6 @@ const LoginPage = () => {
           password: formData.password
         }),
       });
-
-      console.log('Response status:', response.status);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -67,9 +60,11 @@ const LoginPage = () => {
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
 
-      console.log('Login successful, user role:', data.user?.role);
+      if (!data.token || !data.user) {
+        setError('Invalid response from server');
+        return;
+      }
         
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user)); 

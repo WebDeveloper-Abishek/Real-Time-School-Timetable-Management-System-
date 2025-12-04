@@ -1,5 +1,7 @@
 import LeaveRecord from "../models/LeaveRecord.js";
 import TimetableSlot from "../models/TimetableSlot.js";
+import mongoose from "mongoose";
+import Term from "../models/Term.js";
 import { processLeaveRequest } from "../services/replacementService.js";
 // ReplacementSlot model removed - no longer needed
 
@@ -43,19 +45,54 @@ export const requestLeave = async (req, res) => {
     }
     
     // term_id is optional but can be stored if provided
+    // If term_id is provided, validate it exists
     if (term_id) {
-      leaveData.term_id = term_id;
+      if (mongoose.Types.ObjectId.isValid(term_id)) {
+        // Verify term exists
+        const term = await Term.findById(term_id);
+        if (!term) {
+          return res.status(400).json({ message: "Term not found" });
+        }
+        leaveData.term_id = term_id;
+      } else {
+        return res.status(400).json({ message: "Invalid term_id format" });
+      }
+    } else {
+      // If no term_id provided, get current active term
+      const currentTerm = await Term.findOne({ is_active: true }).sort({ createdAt: -1 });
+      if (currentTerm) {
+        leaveData.term_id = currentTerm._id;
+      }
+    }
+    
+    // Validate user_id exists
+    if (!mongoose.Types.ObjectId.isValid(user_id)) {
+      return res.status(400).json({ message: "Invalid user_id format" });
     }
     
     const doc = await LeaveRecord.create(leaveData);
     
     // Populate user and term for response
-    await doc.populate('user_id', 'name role');
+    await doc.populate({
+      path: 'user_id',
+      select: 'name role email'
+    });
+    
     if (doc.term_id) {
-      await doc.populate('term_id', 'term_number academic_year_id');
+      await doc.populate({
+        path: 'term_id',
+        select: 'term_number academic_year_id start_date end_date is_active',
+        populate: {
+          path: 'academic_year_id',
+          select: 'year_label'
+        }
+      });
     }
     
-    return res.status(201).json(doc);
+    return res.status(201).json({
+      ...doc.toObject(),
+      status: 'PENDING'
+    });
   } catch (e) { 
     console.error('Request leave error:', e);
     return res.status(500).json({ message: "Server error", error: e.message }); 
@@ -75,7 +112,14 @@ export const approveLeave = async (req, res) => {
     // Populate before processing
     await leave.populate('user_id', 'name role');
     if (leave.term_id) {
-      await leave.populate('term_id', 'term_number academic_year_id');
+      await leave.populate({
+        path: 'term_id',
+        select: 'term_number academic_year_id',
+        populate: {
+          path: 'academic_year_id',
+          select: 'year_label'
+        }
+      });
     }
     
     // Automatically trigger replacement process
@@ -90,6 +134,7 @@ export const approveLeave = async (req, res) => {
     
     return res.json({
       ...leave.toObject(),
+      status: 'APPROVED',
       replacementInitiated: true
     });
   } catch (e) { 
@@ -101,18 +146,34 @@ export const approveLeave = async (req, res) => {
 export const rejectLeave = async (req, res) => {
   try {
     const { id } = req.params;
+    const { reason: rejectionReason } = req.body || {};
     const leave = await LeaveRecord.findById(id);
     if (!leave) return res.status(404).json({ message: "Not found" });
+    
+    // Set approved to false and add rejection reason to the reason field
     leave.approved = false;
+    if (rejectionReason) {
+      leave.reason = leave.reason + ` [REJECTED: ${rejectionReason}]`;
+    }
     await leave.save();
     
     // Populate before returning
     await leave.populate('user_id', 'name role');
     if (leave.term_id) {
-      await leave.populate('term_id', 'term_number academic_year_id');
+      await leave.populate({
+        path: 'term_id',
+        select: 'term_number academic_year_id',
+        populate: {
+          path: 'academic_year_id',
+          select: 'year_label'
+        }
+      });
     }
     
-    return res.json(leave);
+    return res.json({
+      ...leave.toObject(),
+      status: 'REJECTED'
+    });
   } catch (e) { 
     console.error('Reject leave error:', e);
     return res.status(500).json({ message: "Server error", error: e.message }); 
@@ -123,25 +184,115 @@ export const listLeaves = async (req, res) => {
   try {
     const { user_id, approved, role } = req.query;
     const filter = {};
-    if (user_id) filter.user_id = user_id;
-    if (approved !== undefined) filter.approved = approved === 'true';
     
-    // First get all leaves
-    let list = await LeaveRecord.find(filter)
-      .populate('user_id', 'name role email')
-      .populate('term_id', 'term_number academic_year_id')
-      .sort({ createdAt: -1 });
-    
-    // Filter by role if provided (for admin to see only teacher leaves)
-    if (role) {
-      list = list.filter(leave => leave.user_id && leave.user_id.role === role);
+    // Validate user_id if provided
+    if (user_id) {
+      // Check if it's a valid ObjectId
+      if (!mongoose.Types.ObjectId.isValid(user_id)) {
+        return res.status(400).json({ message: "Invalid user_id format" });
+      }
+      filter.user_id = user_id;
     }
     
-    return res.json(list);
+    if (approved !== undefined) {
+      filter.approved = approved === 'true';
+    }
+    
+    // Get all leaves - simpler populate without match to avoid filtering issues
+    let list = await LeaveRecord.find(filter)
+      .populate('user_id', 'name role email')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // Populate term_id separately and handle errors gracefully
+    const populatedList = await Promise.all(list.map(async (leave) => {
+      try {
+        if (leave.term_id) {
+          const term = await Term.findById(leave.term_id)
+            .populate({
+              path: 'academic_year_id',
+              select: 'year_label'
+            })
+            .lean();
+          if (term) {
+            leave.term_id = term;
+          } else {
+            leave.term_id = null;
+          }
+        }
+      } catch (err) {
+        console.error('Error populating term for leave:', leave._id, err);
+        leave.term_id = null;
+      }
+      return leave;
+    }));
+    
+    // Filter out leaves with deleted users and filter by role if provided
+    // Also add status field based on approved boolean and check for rejected marker
+    const filteredList = populatedList.filter(leave => {
+      // Skip if user is deleted or doesn't exist
+      if (!leave.user_id || (leave.user_id.is_deleted === true)) {
+        return false;
+      }
+      // Filter by role if provided
+      if (role && leave.user_id.role !== role) {
+        return false;
+      }
+      
+      // Add status field based on approved and reason
+      if (leave.approved === true) {
+        leave.status = 'APPROVED';
+      } else if (leave.reason && leave.reason.includes('[REJECTED:')) {
+        leave.status = 'REJECTED';
+      } else {
+        leave.status = 'PENDING';
+      }
+      
+      return true;
+    });
+    
+    return res.json(filteredList);
   } catch (e) { 
     console.error('List leaves error:', e);
     return res.status(500).json({ message: "Server error", error: e.message }); 
   }
 };
 
-
+export const deleteLeave = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id; // Get user from token
+    
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid leave ID format" });
+    }
+    
+    const leave = await LeaveRecord.findById(id);
+    if (!leave) {
+      return res.status(404).json({ message: "Leave request not found" });
+    }
+    
+    // Check if user owns this leave request (for teachers) or is admin
+    // Convert both to strings for comparison
+    const leaveUserId = leave.user_id.toString();
+    const currentUserId = userId.toString();
+    const userRole = req.user?.role;
+    
+    // Only allow deletion if user owns the leave or is admin
+    if (leaveUserId !== currentUserId && userRole !== 'Admin') {
+      return res.status(403).json({ message: "You can only delete your own leave requests" });
+    }
+    
+    // Delete the leave record
+    await LeaveRecord.findByIdAndDelete(id);
+    
+    return res.json({ message: "Leave request deleted successfully" });
+  } catch (e) {
+    console.error('Delete leave error:', e);
+    return res.status(500).json({ message: "Server error", error: e.message });
+  }
+};

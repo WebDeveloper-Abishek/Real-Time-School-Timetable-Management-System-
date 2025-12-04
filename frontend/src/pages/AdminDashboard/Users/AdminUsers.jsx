@@ -109,15 +109,7 @@ const AdminUsers = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching users...');
-      
       const response = await userAPI.getUsers();
-      console.log('Fetch users response received:', {
-        type: typeof response,
-        hasUsers: !!response.users,
-        usersLength: response.users?.length,
-        isArray: Array.isArray(response)
-      });
       
       // Handle different response structures
       let usersData = [];

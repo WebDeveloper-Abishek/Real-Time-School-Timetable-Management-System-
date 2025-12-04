@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 const leaveRecordSchema = new mongoose.Schema(
   {
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Teacher
+    term_id: { type: mongoose.Schema.Types.ObjectId, ref: "Term", required: false }, // Optional: link to term
     leave_type: { 
       type: String, 
       enum: ["Full", "Half"],

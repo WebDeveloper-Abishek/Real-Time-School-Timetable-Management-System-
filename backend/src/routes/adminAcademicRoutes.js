@@ -8,6 +8,7 @@ import {
   createTerm, 
   getTerms,
   getTerm,
+  getCurrentTerm,
   updateTerm,
   deleteTerm
 } from "../controllers/academicController.js";
@@ -24,6 +25,7 @@ router.delete('/academic-years/:id', deleteAcademicYear);
 // Term Routes
 router.post('/terms', createTerm);
 router.get('/terms', getTerms);
+router.get('/terms/current', getCurrentTerm); // Get current active term
 router.get('/terms/:id', getTerm);
 router.put('/terms/:id', updateTerm);
 router.delete('/terms/:id', deleteTerm);

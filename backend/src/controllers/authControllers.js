@@ -169,33 +169,24 @@ export const createTestUser = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    console.log('Get profile - Token received:', token ? 'Yes' : 'No');
     
     if (!token) {
-      console.log('Get profile - No token provided');
       return res.status(401).json({ message: "No token provided" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const userId = decoded.id; // Changed from decoded.userId to decoded.id
-    console.log('Get profile - Decoded userId:', userId);
+    const userId = decoded.id;
 
-    // Find user with account details
     const user = await User.findById(userId).populate('accounts');
-    console.log('Get profile - User found:', user ? 'Yes' : 'No');
     if (!user) {
-      console.log('Get profile - User not found in database');
       return res.status(404).json({ message: "User not found" });
     }
 
     const account = await Account.findOne({ user_id: userId });
-    console.log('Get profile - Account found:', account ? 'Yes' : 'No');
     if (!account) {
-      console.log('Get profile - Account not found in database');
       return res.status(404).json({ message: "Account not found" });
     }
 
-    // Get address for students and teachers only
     let address = null;
     if (user.role === 'Student' || user.role === 'Teacher') {
       address = await Address.findOne({ user_id: userId });
@@ -217,7 +208,6 @@ export const getProfile = async (req, res) => {
       address: address
     };
     
-    console.log('Get profile - Returning data:', profileData);
     res.json(profileData);
   } catch (error) {
     console.error("Get profile error:", error);
@@ -229,17 +219,13 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    console.log('Update profile - Token received:', token ? 'Yes' : 'No');
     
     if (!token) {
-      console.log('Update profile - No token provided');
       return res.status(401).json({ message: "No token provided" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const userId = decoded.id; // Changed from decoded.userId to decoded.id
-    console.log('Update profile - Decoded userId:', userId);
-    console.log('Update profile - Request body:', req.body);
+    const userId = decoded.id;
 
     const { 
       name, 
@@ -256,15 +242,10 @@ export const updateProfile = async (req, res) => {
       postal_code
     } = req.body;
 
-    // Find user and account
     const user = await User.findById(userId);
     const account = await Account.findOne({ user_id: userId });
-    
-    console.log('Update profile - User found:', user ? 'Yes' : 'No');
-    console.log('Update profile - Account found:', account ? 'Yes' : 'No');
 
     if (!user || !account) {
-      console.log('Update profile - User or account not found');
       return res.status(404).json({ message: "User or account not found" });
     }
 
@@ -322,18 +303,15 @@ export const updateProfile = async (req, res) => {
     await user.save();
     await account.save();
     
-    // Update address for teachers (and students if needed) if provided
     if ((user.role === 'Teacher' || user.role === 'Student') && (street || city || postal_code)) {
       let address = await Address.findOne({ user_id: userId });
       
       if (address) {
-        // Update existing address
         if (street) address.street = street;
         if (city) address.city = city;
         if (postal_code) address.postal_code = postal_code;
         await address.save();
       } else if (street && city && postal_code) {
-        // Create new address if all fields are provided
         address = await Address.create({
           user_id: userId,
           street,
@@ -343,15 +321,11 @@ export const updateProfile = async (req, res) => {
       }
     }
     
-    console.log('Update profile - Changes saved successfully');
-
-    // Get updated address for response
     let address = null;
     if (user.role === 'Teacher' || user.role === 'Student') {
       address = await Address.findOne({ user_id: userId });
     }
 
-    // Create notifications for profile update
     try {
       const updatedFields = {};
       if (name) updatedFields.name = name;
@@ -365,7 +339,6 @@ export const updateProfile = async (req, res) => {
       if (street || city || postal_code) updatedFields.address = 'updated';
 
       await createProfileUpdateNotification(userId, updatedFields);
-      console.log('Update profile - Notifications created successfully');
     } catch (notificationError) {
       console.error('Update profile - Error creating notifications:', notificationError);
       // Don't fail the profile update if notifications fail
@@ -388,7 +361,6 @@ export const updateProfile = async (req, res) => {
       address: address
     };
     
-    console.log('Update profile - Returning response:', responseData);
     res.json(responseData);
   } catch (error) {
     console.error("Update profile error:", error);

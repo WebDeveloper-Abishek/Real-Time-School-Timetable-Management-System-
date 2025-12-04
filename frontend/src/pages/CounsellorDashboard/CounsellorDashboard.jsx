@@ -1,28 +1,100 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../Components/DashboardLayout/DashboardLayout';
+import ProfileUpdateModal from '../../Components/ProfileUpdateModal/ProfileUpdateModal';
 import './CounsellorDashboard.css';
 
 const CounsellorDashboard = () => {
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [dashboardData, setDashboardData] = useState({
     stats: {
-      totalStudents: 35,
-      todayAppointments: 4,
-      activeCases: 8,
-      completedSessions: 120
+      totalStudents: 0,
+      todayAppointments: 0,
+      activeCases: 0,
+      completedSessions: 0
     }
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
-    // Fetch dashboard data
-    setLoading(false);
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const userId = user?.id || user?._id;
+      
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      const stats = {
+        totalStudents: 0,
+        todayAppointments: 0,
+        activeCases: 0,
+        completedSessions: 0
+      };
+
+      try {
+        const { mentalHealthAPI } = await import('../../services/api');
+        const reportsResponse = await mentalHealthAPI.getMentalHealthReports({
+          user_id: userId,
+          role: 'Counsellor'
+        });
+        
+        if (reportsResponse?.success) {
+          const reports = reportsResponse.reports || [];
+          stats.activeCases = reports.filter(r => r.status === 'Reported' || r.status === 'In Progress').length;
+          const uniqueStudents = new Set(reports.map(r => r.student_id?._id || r.student_id));
+          stats.totalStudents = uniqueStudents.size;
+        }
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+      }
+
+      try {
+        const { mentalHealthAPI } = await import('../../services/api');
+        const today = new Date().toISOString().split('T')[0];
+        const meetingsResponse = await mentalHealthAPI.getCounsellorMeetings({
+          counsellor_id: userId,
+          start_date: today,
+          end_date: today
+        });
+        
+        if (meetingsResponse?.success) {
+          const meetings = meetingsResponse.meetings || [];
+          stats.todayAppointments = meetings.filter(m => m.status === 'Scheduled' || m.status === 'Accepted').length;
+          stats.completedSessions = meetings.filter(m => m.status === 'Completed').length;
+        }
+      } catch (error) {
+        console.error('Error fetching meetings:', error);
+      }
+
+      setDashboardData({ stats });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProfileUpdate = () => {
     setShowProfileModal(true);
+  };
+
+  const handleProfileClose = () => {
+    setShowProfileModal(false);
+  };
+
+  const handleProfileUpdated = (updatedUser) => {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const updatedUserData = { ...currentUser, ...updatedUser };
+    localStorage.setItem('user', JSON.stringify(updatedUserData));
+    setShowProfileModal(false);
   };
 
   const go = (path) => () => navigate(path);
@@ -38,18 +110,9 @@ const CounsellorDashboard = () => {
       ]
     },
     {
-      title: 'Mental Health',
-      items: [
-        { label: 'Active Cases', icon: '🧠', path: '/counsellor/cases' },
-        { label: 'Reports', icon: '📊', path: '/counsellor/reports' },
-        { label: 'Wellbeing Tracking', icon: '💚', path: '/counsellor/wellbeing' }
-      ]
-    },
-    {
       title: 'Profile',
       items: [
-        { label: 'Update Profile', icon: '✏️', path: '/counsellor/profile', onClick: handleProfileUpdate },
-        { label: 'Settings', icon: '⚙️', path: '/counsellor/settings' }
+        { label: 'Update Profile', icon: '✏️', path: '/counsellor/profile', onClick: handleProfileUpdate }
       ]
     }
   ];
@@ -60,7 +123,7 @@ const CounsellorDashboard = () => {
         pageTitle="Counsellor Dashboard"
         pageDescription="Loading dashboard data..."
         userRole="Counsellor"
-        userName="Counsellor User"
+        userName={user?.name || "Counsellor User"}
         navigationSections={navigationSections}
       >
         <div className="counsellordash-loading-container">
@@ -75,7 +138,7 @@ const CounsellorDashboard = () => {
       pageTitle="Counsellor Dashboard"
       pageDescription="Welcome back! Supporting student wellbeing today."
       userRole="Counsellor"
-      userName="Counsellor User"
+      userName={user?.name || "Counsellor User"}
       navigationSections={navigationSections}
     >
       {/* Quick Stats Cards */}
@@ -219,6 +282,12 @@ const CounsellorDashboard = () => {
           </div>
         </div>
       </section>
+
+      <ProfileUpdateModal
+        isOpen={showProfileModal}
+        onClose={handleProfileClose}
+        onUpdate={handleProfileUpdated}
+      />
     </DashboardLayout>
   );
 };

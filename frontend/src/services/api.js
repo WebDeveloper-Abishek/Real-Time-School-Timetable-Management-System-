@@ -32,7 +32,6 @@ const apiRequest = async (endpoint, options = {}) => {
     const result = await handleResponse(response);
     return result;
   } catch (error) {
-    // Error Propagation Testing
     console.error('API request failed:', error);
     throw error;
   }
@@ -146,9 +145,6 @@ export const termsAPI = {
   // Get all terms
   getTerms: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    console.log('termsAPI.getTerms called with params:', params);
-    console.log('Query string:', queryString);
-    console.log('Full URL:', `/admin/terms?${queryString}`);
     return apiRequest(`/admin/terms?${queryString}`);
   },
 
@@ -363,6 +359,179 @@ export const authAPI = {
   }),
 };
 
+// Exam API
+export const examAPI = {
+  // Add exam marks (Teacher)
+  addExamMarks: (examData) => apiRequest('/exams/marks', {
+    method: 'POST',
+    body: JSON.stringify(examData),
+  }),
+
+  // Get student exam marks (Student)
+  getStudentExamMarks: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/exams/student?${queryString}`);
+  },
+
+  // Get class exam marks (Teacher)
+  getClassExamMarks: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/exams/class?${queryString}`);
+  },
+
+  // Get child exam marks (Parent)
+  getChildExamMarks: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/exams/child?${queryString}`);
+  },
+
+  // Get teacher exam summary
+  getTeacherExamSummary: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/exams/teacher/summary?${queryString}`);
+  },
+
+  // Get exam analytics (Admin)
+  getExamAnalytics: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/exams/analytics?${queryString}`);
+  },
+};
+
+// Mental Health API
+export const mentalHealthAPI = {
+  // Submit mental health report
+  submitMentalHealthReport: (reportData) => apiRequest('/mental-health/reports', {
+    method: 'POST',
+    body: JSON.stringify(reportData),
+  }),
+
+  // Get mental health reports
+  getMentalHealthReports: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/mental-health/reports?${queryString}`);
+  },
+
+  // Update mental health report
+  updateMentalHealthReport: (id, reportData) => apiRequest(`/mental-health/reports/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(reportData),
+  }),
+
+  // Schedule counsellor slot
+  scheduleCounsellorSlot: (slotData) => apiRequest('/mental-health/counsellor-slots', {
+    method: 'POST',
+    body: JSON.stringify(slotData),
+  }),
+
+  // Get available counsellor slots
+  getAvailableCounsellorSlots: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/mental-health/counsellor-slots?${queryString}`);
+  },
+
+  // Schedule meeting with counsellor
+  scheduleCounsellorMeeting: (meetingData) => apiRequest('/mental-health/meetings', {
+    method: 'POST',
+    body: JSON.stringify(meetingData),
+  }),
+
+  // Get counsellor meetings
+  getCounsellorMeetings: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/mental-health/meetings?${queryString}`);
+  },
+
+  // Provide feedback for mental health report
+  provideMentalHealthFeedback: (id, feedbackData) => apiRequest(`/mental-health/reports/${id}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify(feedbackData),
+  }),
+};
+
+// Attendance API
+export const attendanceAPI = {
+  // Get student attendance
+  getStudentAttendance: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/attendance/student?${queryString}`);
+  },
+
+  // Mark attendance
+  markAttendance: (attendanceData) => apiRequest('/attendance/mark', {
+    method: 'POST',
+    body: JSON.stringify(attendanceData),
+  }),
+
+  // Get teacher subject assignments
+  getTeacherSubjectAssignments: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/attendance/teacher/subject-assignments?${queryString}`);
+  },
+
+  // Get subject class students
+  getSubjectClassStudents: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/attendance/teacher/subject-class-students?${queryString}`);
+  },
+};
+
+// Student API
+export const studentAPI = {
+  // Get student timetable
+  getStudentTimetable: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/student/timetable?${queryString}`);
+  },
+
+  // Get student notifications
+  getStudentNotifications: () => apiRequest('/student/notifications'),
+
+  // Mark notification as read
+  markNotificationRead: (id) => apiRequest(`/student/notifications/${id}/read`, {
+    method: 'PUT',
+  }),
+};
+
+// Parent API
+export const parentAPI = {
+  // Get parent children
+  getParentChildren: () => apiRequest('/parent/children'),
+
+  // Get child timetable
+  getChildTimetable: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/parent/child-timetable?${queryString}`);
+  },
+
+  // Get parent notifications
+  getParentNotifications: () => apiRequest('/parent/notifications'),
+};
+
+// Teacher API
+export const teacherAPI = {
+  // Get teacher timetable
+  getTeacherTimetable: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/teacher/timetable?${queryString}`);
+  },
+
+  // Get teacher classes
+  getTeacherClasses: () => apiRequest('/teacher/classes'),
+
+  // Get class students
+  getClassStudents: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/teacher/class-students?${queryString}`);
+  },
+
+  // Get terms
+  getTerms: () => apiRequest('/teacher/terms'),
+
+  // Get current term
+  getCurrentTerm: () => apiRequest('/teacher/terms/current'),
+};
+
 export default {
   userAPI,
   authAPI,
@@ -370,4 +539,10 @@ export default {
   termsAPI,
   classAPI,
   subjectAPI,
+  examAPI,
+  mentalHealthAPI,
+  attendanceAPI,
+  studentAPI,
+  parentAPI,
+  teacherAPI,
 };

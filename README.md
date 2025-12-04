@@ -80,30 +80,28 @@ npm run test-data
 
 ## 🏗️ **System Architecture**
 
-### **Backend Structure**
+### **Backend** (Node.js + Express + MongoDB)
 ```
 backend/
 ├── src/
-│   ├── models/          # MongoDB schemas
-│   ├── controllers/     # Business logic
-│   ├── routes/          # API endpoints
-│   ├── config/          # Database & middleware
-│   └── utils/           # Helper functions
-├── server.js            # Main server file
-├── test-data.js         # Test data generator
-└── package.json
+│   ├── models/           # 20+ MongoDB schemas (User, Class, Timetable, etc.)
+│   ├── controllers/      # Business logic (Auth, Academic, Attendance, Exams)
+│   ├── routes/           # 15+ API route modules
+│   ├── services/         # Core services (Timetable generation, Replacements)
+│   └── middleware/       # Authentication & Authorization
+├── server.js             # Express server + Socket.io
+└── test-data.js          # Database seeding script
 ```
 
-### **Frontend Structure**
+### **Frontend** (React + Vite)
 ```
 frontend/
 ├── src/
-│   ├── pages/           # Dashboard components
-│   ├── Components/      # Reusable components
-│   ├── assets/          # Images & static files
-│   └── main.jsx         # App entry point
-├── index.html
-└── package.json
+│   ├── pages/            # 35+ dashboard pages (Admin, Teacher, Student, Parent, Counsellor)
+│   ├── Components/       # Reusable UI components (Layout, Modals, Chat, Notifications)
+│   ├── services/         # API integration layer
+│   └── assets/           # Images and static resources
+└── vite.config.js        # Build configuration
 ```
 
 ## 🗄️ **Database Schema**
@@ -142,47 +140,6 @@ frontend/
 - **Notifications**: Live updates for timetable changes, attendance, and events
 - **Meeting Scheduling**: Non-conflicting appointment booking for counsellors
 
-## 🧪 **Testing**
-
-### **Test Accounts**
-After running `npm run test-data`:
-
-| Role | Username | Password |
-|------|----------|----------|
-| Admin | `admin` | `password123` |
-| Teacher | `johnsmith` | `password123` |
-| Student | `alicewilson` | `password123` |
-| Parent | `davidwilson` | `password123` |
-| Counsellor | `lisaanderson` | `password123` |
-
-### **Testing Scenarios**
-See [TESTING_GUIDE.md](./TESTING_GUIDE.md) for comprehensive testing instructions.
-
-## 🔧 **API Endpoints**
-
-### **Authentication**
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register-admin` - Admin registration
-- `POST /api/auth/create-test-user` - Create test users
-
-### **Admin APIs**
-- `GET/POST/PUT/DELETE /api/admin/users` - User management
-- `GET/POST/PUT/DELETE /api/admin/academic` - Academic setup
-- `GET/POST/PUT/DELETE /api/admin/subjects` - Subject management
-- `GET/POST/PUT/DELETE /api/admin/classes` - Class management
-- `GET/POST/PUT/DELETE /api/admin/assignments` - Teacher assignments
-- `GET/POST/PUT/DELETE /api/admin/timetable` - Timetable management
-- `GET/POST/PUT/DELETE /api/admin/leaves` - Leave management
-
-### **User-Specific APIs**
-- `GET /api/student/timetable` - Student timetable
-- `GET /api/student/notifications` - Student notifications
-- `GET /api/parent/children` - Parent children list
-- `GET /api/parent/child-timetable` - Child timetable
-- `GET /api/chat/users` - Chat users list
-- `POST /api/chat/send` - Send message
-- `GET /api/chat/conversation` - Get conversation
-
 ## 🎯 **Key Algorithms**
 
 ### **Teacher Replacement Logic**
@@ -199,26 +156,6 @@ See [TESTING_GUIDE.md](./TESTING_GUIDE.md) for comprehensive testing instruction
 - **Progress Monitoring**: Real-time tracking of syllabus coverage
 - **Term Management**: Admin controls term creation and limit resets
 
-## 🚀 **Deployment**
-
-### **Backend Deployment**
-```bash
-# Set environment variables
-NODE_ENV=production
-MONGODB_URI=your_mongodb_atlas_uri
-JWT_SECRET=your_jwt_secret
-
-# Deploy to your preferred platform
-npm start
-```
-
-### **Frontend Deployment**
-```bash
-# Build for production
-npm run build
-
-# Deploy to Vercel, Netlify, or your preferred platform
-```
 
 ## 🔒 **Security Features**
 
@@ -252,26 +189,3 @@ npm run build
 - **React Router** - Client-side routing
 - **CSS3** - Styling
 - **JavaScript ES6+** - Modern JavaScript
-
-## 🤝 **Contributing**
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📞 **Support**
-
-For support and questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the [TESTING_GUIDE.md](./TESTING_GUIDE.md) for troubleshooting
-
----
-
-**Built with ❤️ for modern school management**

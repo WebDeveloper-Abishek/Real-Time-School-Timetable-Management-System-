@@ -12,9 +12,9 @@ const AdminLeaves = () => {
   const [adminleavesShowModal, setAdminleavesShowModal] = useState(false);
   const [adminleavesAlerts, setAdminleavesAlerts] = useState([]);
   const [adminleavesFilterStatus, setAdminleavesFilterStatus] = useState('ALL');
-  const [adminleavesFilterTerm, setAdminleavesFilterTerm] = useState('');
   const [adminleavesFilterTeacher, setAdminleavesFilterTeacher] = useState('');
   const [error, setError] = useState(null);
+  const [currentTermId, setCurrentTermId] = useState(null);
   
   const [adminleavesForm, setAdminleavesForm] = useState({
     user_id: '',
@@ -33,24 +33,26 @@ const AdminLeaves = () => {
     }, 5000);
   };
 
-  const adminleavesFetchTerms = async () => {
+
+  const adminleavesFetchCurrentTerm = async () => {
     try {
       const token = localStorage.getItem('token') || '';
-      const r = await fetch('http://localhost:5000/api/admin/terms', {
+      const r = await fetch('http://localhost:5000/api/admin/terms/current', {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
-      if (!r.ok) {
-        throw new Error(`Failed to fetch terms: ${r.status}`);
+      
+      if (r.ok) {
+        const currentTerm = await r.json();
+        if (currentTerm && currentTerm._id) {
+          setCurrentTermId(currentTerm._id);
+          setAdminleavesTerms([currentTerm]);
+        }
       }
-      const data = await r.json();
-      setAdminleavesTerms(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error fetching terms:', error);
-      adminleavesAddAlert('Error fetching terms', 'error');
-      setAdminleavesTerms([]);
+      adminleavesAddAlert('Error fetching current term', 'error');
     }
   };
 
@@ -76,13 +78,19 @@ const AdminLeaves = () => {
     }
   };
 
-  const adminleavesFetchLeaves = async () => {
+  const adminleavesFetchLeaves = async (termIdToFetch = currentTermId) => {
     try {
       setAdminleavesLoading(true);
       setError(null);
       const token = localStorage.getItem('token') || '';
-      // Fetch ALL leave requests from ALL teachers (filter by role=Teacher)
-      const r = await fetch('http://localhost:5000/api/admin/leaves?role=Teacher', {
+      
+      // Build URL with term filter to reduce data transfer
+      let url = 'http://localhost:5000/api/admin/leaves?role=Teacher';
+      if (termIdToFetch) {
+        url += `&term_id=${termIdToFetch}`;
+      }
+      
+      const r = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
@@ -96,12 +104,10 @@ const AdminLeaves = () => {
       }
       
       const data = await r.json();
-      console.log('Fetched leaves data:', data);
       
       // Ensure we have an array and filter out any invalid entries
       const validLeaves = Array.isArray(data) 
         ? data.filter(leave => {
-            // Allow leaves even if user_id is not populated yet (will be populated)
             return leave && leave._id;
           })
         : [];
@@ -113,13 +119,12 @@ const AdminLeaves = () => {
         return dateB - dateA;
       });
       
-      console.log('Valid leaves count:', validLeaves.length);
       setAdminleavesList(validLeaves);
     } catch (error) {
       console.error('Error fetching leaves:', error);
       const errorMsg = error.message || 'Unknown error';
       setError(errorMsg);
-      adminleavesAddAlert('Error fetching leaves: ' + errorMsg + '. Please check if the backend server is running on port 5000.', 'error');
+      adminleavesAddAlert('Error fetching leaves: ' + errorMsg, 'error');
       setAdminleavesList([]);
     } finally {
       setAdminleavesLoading(false);
@@ -127,17 +132,19 @@ const AdminLeaves = () => {
   };
 
   useEffect(() => {
-    adminleavesFetchTerms();
-    adminleavesFetchTeachers();
-    adminleavesFetchLeaves();
-    
-    // Refresh leaves every 30 seconds to catch new teacher submissions
-    const refreshInterval = setInterval(() => {
-      adminleavesFetchLeaves();
-    }, 30000);
-    
-    return () => clearInterval(refreshInterval);
+    const initialize = async () => {
+      await adminleavesFetchCurrentTerm();
+      adminleavesFetchTeachers();
+    };
+    initialize();
   }, []);
+  
+  // Fetch leaves when current term is available
+  useEffect(() => {
+    if (currentTermId) {
+      adminleavesFetchLeaves(currentTermId);
+    }
+  }, [currentTermId]);
 
   const adminleavesRequestLeave = async (e) => {
     e.preventDefault();
@@ -165,7 +172,7 @@ const AdminLeaves = () => {
         type: 'FULL_DAY',
         reason: ''
       });
-      await adminleavesFetchLeaves();
+      await adminleavesFetchLeaves(currentTermId);
     } catch (error) {
       adminleavesAddAlert('Error submitting leave request', 'error');
     } finally {
@@ -190,7 +197,7 @@ const AdminLeaves = () => {
       if (response.ok) {
         adminleavesAddAlert('Leave approved successfully! Replacement teachers will be notified.', 'success');
         // Refresh the list to show updated status
-        await adminleavesFetchLeaves();
+        await adminleavesFetchLeaves(currentTermId);
       } else {
         const errorData = await response.json().catch(() => ({}));
         adminleavesAddAlert('Error approving leave: ' + (errorData.message || 'Unknown error'), 'error');
@@ -218,7 +225,7 @@ const AdminLeaves = () => {
       if (response.ok) {
         adminleavesAddAlert('Leave request rejected', 'success');
         // Refresh the list to show updated status
-        await adminleavesFetchLeaves();
+        await adminleavesFetchLeaves(currentTermId);
       } else {
         const errorData = await response.json().catch(() => ({}));
         adminleavesAddAlert('Error rejecting leave: ' + (errorData.message || 'Unknown error'), 'error');
@@ -237,20 +244,30 @@ const AdminLeaves = () => {
       
       let filtered = [...adminleavesList];
       
-      if (adminleavesFilterStatus !== 'ALL') {
-        filtered = filtered.filter(leave => {
-          if (!leave) return false;
-          // Handle both new format (status) and old format (approved)
-          const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
-          return status === adminleavesFilterStatus;
-        });
-      }
-      
-      if (adminleavesFilterTerm) {
+      // Only show leaves from current term
+      if (currentTermId) {
         filtered = filtered.filter(leave => {
           if (!leave) return false;
           const leaveTermId = typeof leave.term_id === 'object' ? leave.term_id?._id : leave.term_id;
-          return leaveTermId && leaveTermId.toString() === adminleavesFilterTerm;
+          return leaveTermId && leaveTermId.toString() === currentTermId.toString();
+        });
+      }
+      
+      if (adminleavesFilterStatus !== 'ALL') {
+        filtered = filtered.filter(leave => {
+          if (!leave) return false;
+          // Check status: use status field if available, otherwise determine from approved and reason
+          let status = leave.status;
+          if (!status) {
+            if (leave.approved === true) {
+              status = 'APPROVED';
+            } else if (leave.reason && leave.reason.includes('[REJECTED:')) {
+              status = 'REJECTED';
+            } else {
+              status = 'PENDING';
+            }
+          }
+          return status === adminleavesFilterStatus;
         });
       }
       
@@ -269,9 +286,16 @@ const AdminLeaves = () => {
     }
   };
 
+  const adminleavesGetStatus = (leave) => {
+    // Check status: use status field if available, otherwise determine from approved and reason
+    if (leave.status) return leave.status;
+    if (leave.approved === true) return 'APPROVED';
+    if (leave.reason && leave.reason.includes('[REJECTED:')) return 'REJECTED';
+    return 'PENDING';
+  };
+
   const adminleavesGetStatusColor = (leave) => {
-    // Handle both new format (status) and old format (approved)
-    const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
+    const status = adminleavesGetStatus(leave);
     const colors = {
       'PENDING': 'adminleaves-status-pending',
       'APPROVED': 'adminleaves-status-approved',
@@ -281,8 +305,7 @@ const AdminLeaves = () => {
   };
 
   const adminleavesGetStatusIcon = (leave) => {
-    // Handle both new format (status) and old format (approved)
-    const status = leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
+    const status = adminleavesGetStatus(leave);
     const icons = {
       'PENDING': '⏳',
       'APPROVED': '✅',
@@ -292,8 +315,7 @@ const AdminLeaves = () => {
   };
 
   const adminleavesGetStatusLabel = (leave) => {
-    // Handle both new format (status) and old format (approved)
-    return leave.status || (leave.approved === true ? 'APPROVED' : (leave.approved === false ? 'PENDING' : 'PENDING'));
+    return adminleavesGetStatus(leave);
   };
 
   const adminleavesGetLeaveTypeLabel = (leave) => {
@@ -395,6 +417,16 @@ const AdminLeaves = () => {
             <h1 className="adminleaves-page-title">Leave Management</h1>
             <p className="adminleaves-page-subtitle">View and manage all teacher leave requests. Approved leaves automatically trigger replacement process.</p>
           </div>
+          <div className="adminleaves-header-right">
+            <button
+              className="adminleaves-refresh-btn"
+              onClick={() => adminleavesFetchLeaves(currentTermId)}
+              disabled={adminleavesLoading}
+              title="Refresh leave requests"
+            >
+              {adminleavesLoading ? '⏳' : '🔄'}
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -406,8 +438,7 @@ const AdminLeaves = () => {
                 <h3 className="adminleaves-stat-value">
                   {Array.isArray(adminleavesList) ? adminleavesList.filter(l => {
                     if (!l) return false;
-                    const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
-                    return status === 'PENDING';
+                    return adminleavesGetStatus(l) === 'PENDING';
                   }).length : 0}
                 </h3>
                 <p className="adminleaves-stat-label">Pending Requests</p>
@@ -420,8 +451,7 @@ const AdminLeaves = () => {
                 <h3 className="adminleaves-stat-value">
                   {Array.isArray(adminleavesList) ? adminleavesList.filter(l => {
                     if (!l) return false;
-                    const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
-                    return status === 'APPROVED';
+                    return adminleavesGetStatus(l) === 'APPROVED';
                   }).length : 0}
                 </h3>
                 <p className="adminleaves-stat-label">Approved</p>
@@ -434,8 +464,7 @@ const AdminLeaves = () => {
                 <h3 className="adminleaves-stat-value">
                   {Array.isArray(adminleavesList) ? adminleavesList.filter(l => {
                     if (!l) return false;
-                    const status = l.status || (l.approved === true ? 'APPROVED' : (l.approved === false ? 'PENDING' : 'PENDING'));
-                    return status === 'REJECTED';
+                    return adminleavesGetStatus(l) === 'REJECTED';
                   }).length : 0}
                 </h3>
                 <p className="adminleaves-stat-label">Rejected</p>
@@ -472,23 +501,6 @@ const AdminLeaves = () => {
           </div>
           
           <div className="adminleaves-filter-group">
-            <label htmlFor="adminleaves-term-filter">Filter by Term:</label>
-            <select
-              id="adminleaves-term-filter"
-              value={adminleavesFilterTerm}
-              onChange={(e) => setAdminleavesFilterTerm(e.target.value)}
-              className="adminleaves-filter-select"
-            >
-              <option value="">All Terms</option>
-              {Array.isArray(adminleavesTerms) && adminleavesTerms.map(term => (
-                <option key={term?._id || Math.random()} value={term?._id || ''}>
-                  Term {term?.term_number || 'N/A'} - {term?.academic_year_id?.year_label || ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="adminleaves-filter-group">
             <label htmlFor="adminleaves-teacher-filter">Filter by Teacher:</label>
             <select
               id="adminleaves-teacher-filter"
@@ -516,7 +528,9 @@ const AdminLeaves = () => {
         <div className="adminleaves-list-section">
           <div className="adminleaves-list-header">
             <h2 className="adminleaves-list-title">All Teacher Leave Requests</h2>
-            <p className="adminleaves-list-subtitle">All leave requests submitted by teachers will appear here. Approved leaves automatically trigger replacement process.</p>
+            <p className="adminleaves-list-subtitle">
+              Showing leave requests for <strong>Current Term</strong>. Approved leaves automatically trigger replacement process.
+            </p>
           </div>
           
           {adminleavesLoading ? (
@@ -575,7 +589,7 @@ const AdminLeaves = () => {
                         <div className="adminleaves-info-content">
                           <span className="adminleaves-info-label">Term</span>
                           <span className="adminleaves-info-value">
-                            Term {leave.term_id?.term_number || 'N/A'}
+                            Current Term
                           </span>
                         </div>
                       </div>
@@ -615,7 +629,16 @@ const AdminLeaves = () => {
                           <span className="adminleaves-info-icon">💬</span>
                           <div className="adminleaves-info-content">
                             <span className="adminleaves-info-label">Reason</span>
-                            <span className="adminleaves-info-value">{leave.reason}</span>
+                            <span className="adminleaves-info-value">
+                              {leave.reason.includes('[REJECTED:') 
+                                ? leave.reason.substring(0, leave.reason.indexOf('[REJECTED:')) 
+                                : leave.reason}
+                            </span>
+                            {leave.reason.includes('[REJECTED:') && (
+                              <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fee2e2', borderRadius: '4px', fontSize: '0.875rem' }}>
+                                <strong>Rejection Reason:</strong> {leave.reason.substring(leave.reason.indexOf('[REJECTED:') + 10, leave.reason.lastIndexOf(']'))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -623,7 +646,7 @@ const AdminLeaves = () => {
                   </div>
 
                   {/* Card Actions - Show for pending requests (not approved and not rejected) */}
-                  {leave.approved !== true && leave.status !== 'REJECTED' && (
+                  {adminleavesGetStatus(leave) === 'PENDING' && (
                     <div className="adminleaves-card-actions">
                       <button
                         className="adminleaves-btn adminleaves-btn-approve"
@@ -642,7 +665,7 @@ const AdminLeaves = () => {
                     </div>
                   )}
                   
-                  {(leave.status === 'APPROVED' || leave.approved === true) && (
+                  {adminleavesGetStatus(leave) === 'APPROVED' && (
                     <div className="adminleaves-replacement-info">
                       <div className="adminleaves-replacement-header">
                         <span className="adminleaves-replacement-icon">🔄</span>

@@ -501,6 +501,29 @@ export const getTerms = async (req, res) => {
   }
 };
 
+// Get current active term
+export const getCurrentTerm = async (req, res) => {
+  try {
+    // Find all active terms and get the one with highest term_number
+    // This ensures we get Term 3 if it's active, not Term 1
+    const terms = await Term.find({ is_active: true })
+      .populate('academic_year_id', 'year_label')
+      .sort({ term_number: -1, createdAt: -1 })
+      .limit(1);
+    
+    const term = terms.length > 0 ? terms[0] : null;
+    
+    if (!term) {
+      return res.status(404).json({ message: "No active term found" });
+    }
+
+    res.json(term);
+  } catch (error) {
+    console.error("Get current term error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const getTerm = async (req, res) => {
   try {
     const { id } = req.params;

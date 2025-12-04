@@ -191,12 +191,12 @@ body {
 }
 
 .dashlayout-nav-title {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
-  padding: 0 1.5rem 0.75rem;
+  padding: 0 1.5rem 0.875rem;
   margin: 0;
 }
 
@@ -213,8 +213,8 @@ body {
 .dashlayout-nav-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.8rem 1rem;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
   color: #fff;
   text-decoration: none;
   border: 1px solid transparent;
@@ -224,7 +224,7 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
   border-radius: 8px;
-  font-size: 1.11rem;
+  font-size: 1.25rem;
   font-weight: 500;
   font-family: inherit;
   outline: none;
@@ -252,9 +252,10 @@ body {
 }
 
 .dashlayout-nav-icon {
-  font-size: 1.25rem;
-  width: 1.5rem;
+  font-size: 1.5rem;
+  width: 2rem;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .dashlayout-sidebar-footer {

@@ -1,3 +1,4 @@
+/* Teacher Students CSS - Modern Design */
 .teacherstudents-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -7,8 +8,9 @@
 .teacherstudents-table-container {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  border: 1px solid #e2e8f0;
 }
 
 .teacherstudents-table {
@@ -17,43 +19,104 @@
 }
 
 .teacherstudents-table thead {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
 }
 
 .teacherstudents-table th {
-  padding: 1rem;
+  padding: 1.25rem 1.5rem;
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .teacherstudents-table tbody tr {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #f1f5f9;
+  transition: all 0.2s;
 }
 
 .teacherstudents-table tbody tr:hover {
   background: #f8fafc;
 }
 
+.teacherstudents-table tbody tr:last-child {
+  border-bottom: none;
+}
+
 .teacherstudents-table td {
-  padding: 1rem;
+  padding: 1.25rem 1.5rem;
   color: #1e293b;
+  font-size: 0.875rem;
 }
 
 .teacherstudents-btn {
-  padding: 0.5rem 1rem;
-  background: #3b82f6;
+  padding: 0.625rem 1.25rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-weight: 600;
+  font-size: 0.875rem;
   cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.teacherstudents-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+}
+
+.teacherstudents-btn:active {
+  transform: translateY(0);
 }
 
 .teacherstudents-loading,
 .teacherstudents-empty {
   text-align: center;
-  padding: 2rem;
+  padding: 3rem 2rem;
   color: #64748b;
+  font-size: 1rem;
 }
 
+.teacherstudents-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.teacherstudents-loading::after {
+  content: '';
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .teacherstudents-container {
+    padding: 1rem;
+  }
+
+  .teacherstudents-table-container {
+    overflow-x: auto;
+  }
+
+  .teacherstudents-table {
+    min-width: 600px;
+  }
+
+  .teacherstudents-table th,
+  .teacherstudents-table td {
+    padding: 1rem;
+  }
+}

@@ -26,36 +26,21 @@ import AdminNotifications from './pages/AdminDashboard/Notifications/AdminNotifi
 import AdminAttendance from './pages/AdminDashboard/Attendance/AdminAttendance';
 import AdminExams from './pages/AdminDashboard/Exams/AdminExams';
 
-// Chat Pages
-import TeacherChat from './pages/TeacherDashboard/Chat/TeacherChat';
-import StudentChat from './pages/StudentDashboard/Chat/StudentChat';
+// Teacher Pages
 import TeacherReplacements from './pages/TeacherDashboard/Replacements/TeacherReplacements';
 import TeacherLeaves from './pages/TeacherDashboard/Leaves/TeacherLeaves';
-
-// Timetable Pages
-import StudentTimetable from './pages/StudentDashboard/Timetable/StudentTimetable';
 import TeacherTimetable from './pages/TeacherDashboard/Timetable/TeacherTimetable';
-
-// Student Pages
-import StudentClasses from './pages/StudentDashboard/Classes/StudentClasses';
-import StudentAssignments from './pages/StudentDashboard/Assignments/StudentAssignments';
-import StudentExams from './pages/StudentDashboard/Exams/StudentExams';
-import StudentGrades from './pages/StudentDashboard/Grades/StudentGrades';
-import StudentAttendance from './pages/StudentDashboard/Attendance/StudentAttendance';
-import StudentProgress from './pages/StudentDashboard/Progress/StudentProgress';
-import StudentCounselling from './pages/StudentDashboard/Counselling/StudentCounselling';
-import StudentNotifications from './pages/StudentDashboard/Notifications/StudentNotifications';
-import StudentMessages from './pages/StudentDashboard/Messages/StudentMessages';
-import StudentProfile from './pages/StudentDashboard/Profile/StudentProfile';
-import StudentSettings from './pages/StudentDashboard/Settings/StudentSettings';
-
-// Teacher Pages
 import TeacherClasses from './pages/TeacherDashboard/Classes/TeacherClasses';
 import TeacherStudents from './pages/TeacherDashboard/Students/TeacherStudents';
 import TeacherAttendance from './pages/TeacherDashboard/Attendance/TeacherAttendance';
 import TeacherExams from './pages/TeacherDashboard/Exams/TeacherExams';
-import TeacherProfile from './pages/TeacherDashboard/Profile/TeacherProfile';
-import TeacherSettings from './pages/TeacherDashboard/Settings/TeacherSettings';
+
+// Student Pages
+import StudentTimetable from './pages/StudentDashboard/Timetable/StudentTimetable';
+import StudentAssignments from './pages/StudentDashboard/Assignments/StudentAssignments';
+import StudentExamsGrades from './pages/StudentDashboard/ExamsGrades/StudentExamsGrades';
+import StudentAttendance from './pages/StudentDashboard/Attendance/StudentAttendance';
+import StudentCounselling from './pages/StudentDashboard/Counselling/StudentCounselling';
 
 // Counsellor Pages
 import CounsellorStudents from './pages/CounsellorDashboard/Students/CounsellorStudents';
@@ -244,14 +229,6 @@ const AppWrapper = () => {
           } 
         />
         <Route 
-          path="/teacher/chat" 
-          element={
-            <ProtectedRoute allowedRoles={['Teacher']}>
-              <TeacherChat />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
           path="/teacher/replacements" 
           element={
             <ProtectedRoute allowedRoles={['Teacher']}>
@@ -307,23 +284,6 @@ const AppWrapper = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/teacher/profile" 
-          element={
-            <ProtectedRoute allowedRoles={['Teacher']}>
-              <TeacherProfile />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/teacher/settings" 
-          element={
-            <ProtectedRoute allowedRoles={['Teacher']}>
-              <TeacherSettings />
-            </ProtectedRoute>
-          } 
-        />
-        
         {/* Student Routes */}
         <Route 
           path="/student/dashboard" 
@@ -334,26 +294,10 @@ const AppWrapper = () => {
           } 
         />
         <Route 
-          path="/student/chat" 
-          element={
-            <ProtectedRoute allowedRoles={['Student']}>
-              <StudentChat />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
           path="/student/timetable" 
           element={
             <ProtectedRoute allowedRoles={['Student']}>
               <StudentTimetable />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/student/classes" 
-          element={
-            <ProtectedRoute allowedRoles={['Student']}>
-              <StudentClasses />
             </ProtectedRoute>
           } 
         />
@@ -369,7 +313,7 @@ const AppWrapper = () => {
           path="/student/exams" 
           element={
             <ProtectedRoute allowedRoles={['Student']}>
-              <StudentExams />
+              <StudentExamsGrades />
             </ProtectedRoute>
           } 
         />
@@ -377,7 +321,7 @@ const AppWrapper = () => {
           path="/student/grades" 
           element={
             <ProtectedRoute allowedRoles={['Student']}>
-              <StudentGrades />
+              <StudentExamsGrades />
             </ProtectedRoute>
           } 
         />
@@ -390,14 +334,6 @@ const AppWrapper = () => {
           } 
         />
         <Route 
-          path="/student/progress" 
-          element={
-            <ProtectedRoute allowedRoles={['Student']}>
-              <StudentProgress />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
           path="/student/counselling" 
           element={
             <ProtectedRoute allowedRoles={['Student']}>
@@ -405,49 +341,6 @@ const AppWrapper = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/student/notifications" 
-          element={
-            <ProtectedRoute allowedRoles={['Student']}>
-              <StudentNotifications />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/student/profile" 
-          element={
-            <ProtectedRoute allowedRoles={['Student']}>
-              <StudentProfile />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/student/settings" 
-          element={
-            <ProtectedRoute allowedRoles={['Student']}>
-              <StudentSettings />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/student/messages" 
-          element={
-            <ProtectedRoute allowedRoles={['Student']}>
-              <StudentMessages />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Parent Routes */}
-        <Route 
-          path="/parent/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['Parent']}>
-              <ParentDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        
         {/* Counsellor Routes */}
         <Route 
           path="/counsellor/dashboard" 

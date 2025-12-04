@@ -51,42 +51,19 @@ const ProfileUpdateModal = ({ isOpen, onClose, onUpdate, onNotificationRefresh }
 
   useEffect(() => {
     if (isOpen) {
-      testConnection();
       fetchProfile();
     }
   }, [isOpen]);
 
-  const testConnection = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      console.log('Testing connection with token:', token ? 'Token exists' : 'No token');
-      
-      const response = await fetch('http://localhost:5000/api/auth/test-profile', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
-      console.log('Connection test result:', data);
-    } catch (error) {
-      console.error('Connection test failed:', error);
-    }
-  };
-
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Token from localStorage:', token ? 'Token exists' : 'No token found');
       
       if (!token) {
         showMessage('No authentication token found. Please login again.', 'error');
         return;
       }
 
-      console.log('Fetching profile from:', 'http://localhost:5000/api/auth/profile');
       const response = await fetch('http://localhost:5000/api/auth/profile', {
         method: 'GET',
         headers: {
@@ -95,9 +72,7 @@ const ProfileUpdateModal = ({ isOpen, onClose, onUpdate, onNotificationRefresh }
         }
       });
 
-      console.log('Profile response status:', response.status);
       const data = await response.json();
-      console.log('Profile response data:', data);
 
       if (response.ok) {
         setFormData({
@@ -108,9 +83,7 @@ const ProfileUpdateModal = ({ isOpen, onClose, onUpdate, onNotificationRefresh }
           newPassword: '',
           confirmPassword: ''
         });
-        console.log('Profile data set successfully:', data.user);
       } else {
-        console.error('Profile fetch failed:', data);
         showMessage(data.message || 'Error fetching profile', 'error');
       }
     } catch (error) {
@@ -210,8 +183,6 @@ const ProfileUpdateModal = ({ isOpen, onClose, onUpdate, onNotificationRefresh }
 
       // Make API call
       const token = localStorage.getItem('token');
-      console.log('Update profile - Token exists:', token ? 'Yes' : 'No');
-      console.log('Update profile - Data being sent:', updateData);
       
       const response = await fetch('http://localhost:5000/api/auth/profile', {
         method: 'PUT',
@@ -222,9 +193,7 @@ const ProfileUpdateModal = ({ isOpen, onClose, onUpdate, onNotificationRefresh }
         body: JSON.stringify(updateData)
       });
 
-      console.log('Update profile - Response status:', response.status);
       const data = await response.json();
-      console.log('Update profile - Response data:', data);
 
       if (response.ok) {
         showMessage('Profile updated successfully!', 'success');

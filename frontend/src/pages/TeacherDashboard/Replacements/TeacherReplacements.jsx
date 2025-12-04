@@ -4,6 +4,38 @@ import './TeacherReplacements.css';
 
 const TeacherReplacements = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const navigationSections = [
+    {
+      title: 'MY TEACHING',
+      items: [
+        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
+        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
+        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
+        { label: 'Students', icon: '🎓', path: '/teacher/students' }
+      ]
+    },
+    {
+      title: 'ACADEMIC',
+      items: [
+        { label: 'Exams', icon: '✍️', path: '/teacher/exams' },
+        { label: 'Attendance', icon: '✅', path: '/teacher/attendance' }
+      ]
+    },
+    {
+      title: 'LEAVE & DUTIES',
+      items: [
+        { label: 'Leave Requests', icon: '🏖️', path: '/teacher/leaves' },
+        { label: 'Replacements', icon: '🔄', path: '/teacher/replacements' }
+      ]
+    },
+    {
+      title: 'PROFILE',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/teacher/profile' }
+      ]
+    }
+  ];
   const [teacherreplacementsRequests, setTeacherreplacementsRequests] = useState([]);
   const [teacherreplacementsAlerts, setTeacherreplacementsAlerts] = useState([]);
   const [teacherreplacementsLoading, setTeacherreplacementsLoading] = useState(false);
@@ -95,24 +127,6 @@ const TeacherReplacements = () => {
     teacherreplacementsFetchRequests();
   }, []);
 
-  const navigationSections = [
-    {
-      title: 'My Teaching',
-      items: [
-        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
-        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
-        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
-        { label: 'Students', icon: '🎓', path: '/teacher/students' }
-      ]
-    },
-    {
-      title: 'Replacements',
-      items: [
-        { label: 'Replacement Requests', icon: '👨‍🏫', path: '/teacher/replacements' },
-        { label: 'My Replacements', icon: '📋', path: '/teacher/my-replacements' }
-      ]
-    }
-  ];
 
   return (
     <DashboardLayout

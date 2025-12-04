@@ -24,6 +24,7 @@
 .teachertimetable-slot-empty { background: #f8fafc; color: #64748b; }
 .teachertimetable-empty-slot { text-align: center; }
 .teachertimetable-slot-type { font-size: 0.875rem; font-weight: 600; }
+.teachertimetable-free-slot { font-size: 1rem; font-weight: 700; color: #64748b; display: block; margin-bottom: 0.25rem; }
 .teachertimetable-filled-slot { text-align: center; padding: 0.5rem; }
 .teachertimetable-class { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.25rem; }
 .teachertimetable-subject { font-size: 0.8rem; opacity: 0.9; margin-bottom: 0.25rem; }

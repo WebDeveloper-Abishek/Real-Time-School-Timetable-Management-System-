@@ -1,0 +1,287 @@
+/* Student Exams & Grades - Combined Modern Design */
+.studentexamsgrades-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.studentexamsgrades-header {
+  margin-bottom: 2rem;
+}
+
+.studentexamsgrades-tabs {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.studentexamsgrades-tab,
+.studentexamsgrades-tab-active {
+  padding: 0.875rem 2rem;
+  border: none;
+  border-radius: 24px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.studentexamsgrades-tab {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 2px solid transparent;
+}
+
+.studentexamsgrades-tab:hover {
+  background: #e2e8f0;
+}
+
+.studentexamsgrades-tab-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.studentexamsgrades-subtabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.studentexamsgrades-subtab,
+.studentexamsgrades-subtab-active {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.studentexamsgrades-subtab {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.studentexamsgrades-subtab:hover {
+  background: #e2e8f0;
+}
+
+.studentexamsgrades-subtab-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.studentexamsgrades-content {
+  margin-top: 1rem;
+}
+
+.studentexamsgrades-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+}
+
+.studentexamsgrades-exam-card,
+.studentexamsgrades-grade-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+}
+
+.studentexamsgrades-exam-card:hover,
+.studentexamsgrades-grade-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.studentexamsgrades-card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.75rem 1.5rem;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.studentexamsgrades-card-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.studentexamsgrades-card-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+}
+
+.studentexamsgrades-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
+}
+
+.studentexamsgrades-badge-upcoming {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.studentexamsgrades-badge-completed {
+  background: rgba(16, 185, 129, 0.8);
+  color: white;
+}
+
+.studentexamsgrades-card-body {
+  padding: 1.5rem;
+}
+
+.studentexamsgrades-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.studentexamsgrades-info:last-child {
+  border-bottom: none;
+}
+
+.studentexamsgrades-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.studentexamsgrades-value {
+  font-size: 0.875rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.studentexamsgrades-marks {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid #e2e8f0;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.studentexamsgrades-marks-item {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.studentexamsgrades-marks-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.studentexamsgrades-marks-value {
+  font-size: 1rem;
+  color: #667eea;
+  font-weight: 700;
+}
+
+.studentexamsgrades-grade-display {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.studentexamsgrades-grade {
+  display: inline-block;
+  font-size: 3.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+
+.studentexamsgrades-grade-excellent {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.studentexamsgrades-grade-good {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.studentexamsgrades-grade-average {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.studentexamsgrades-grade-poor {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.studentexamsgrades-loading,
+.studentexamsgrades-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+  font-size: 1.1rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .studentexamsgrades-container {
+    padding: 1rem;
+  }
+
+  .studentexamsgrades-tabs,
+  .studentexamsgrades-subtabs {
+    justify-content: center;
+  }
+
+  .studentexamsgrades-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .studentexamsgrades-marks {
+    flex-direction: column;
+  }
+}
+

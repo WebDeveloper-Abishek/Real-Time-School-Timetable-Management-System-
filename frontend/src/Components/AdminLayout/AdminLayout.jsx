@@ -27,8 +27,10 @@ const AdminLayout = ({ children, pageTitle = "Admin Dashboard", pageDescription 
   };
 
   const handleProfileUpdateSuccess = (updatedUser) => {
-    // You can add logic here to update the user info in the header
-    console.log('Profile updated:', updatedUser);
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const updatedUserData = { ...currentUser, ...updatedUser };
+    localStorage.setItem('user', JSON.stringify(updatedUserData));
+    setShowProfileModal(false);
   };
 
   const handleNotificationRefresh = () => {

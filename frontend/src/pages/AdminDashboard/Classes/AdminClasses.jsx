@@ -260,7 +260,7 @@ const AdminClasses = () => {
         } else if (sourceTermNumber === 3) {
           // Find 1st term of next academic year
           // Get current year from source academic year
-          const sourceYearLabel = sourceTerm.academic_year_id.year_label;
+          
           const currentYear = new Date().getFullYear();
           const nextYear = currentYear + 1;
           

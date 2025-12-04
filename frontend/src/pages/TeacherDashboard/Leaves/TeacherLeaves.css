@@ -259,6 +259,15 @@
   padding: 0.5rem 1rem;
   border-radius: 20px;
   border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.teacherleaves-last-refresh {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 /* List Section */
@@ -356,6 +365,32 @@
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.teacherleaves-status-badge-animated {
+  animation: teacherleavesStatusPulse 0.6s ease-in-out;
+}
+
+@keyframes teacherleavesStatusPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.teacherleaves-status-rejected {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
 }
 
 .teacherleaves-status-pending {
@@ -366,11 +401,46 @@
 .teacherleaves-status-approved {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
+  position: relative;
+}
+
+.teacherleaves-status-approved::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  opacity: 0.5;
+  z-index: -1;
+  animation: teacherleavesApprovedGlow 2s ease-in-out infinite;
+}
+
+@keyframes teacherleavesApprovedGlow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
 }
 
 /* Card Body */
 .teacherleaves-card-body {
   padding: 1.5rem;
+}
+
+/* Card Footer */
+.teacherleaves-card-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .teacherleaves-info-grid {
@@ -597,7 +667,73 @@
   color: #374151;
 }
 
+.teacherleaves-btn-secondary {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(100, 116, 139, 0.2);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex: 0 0 auto;
+  min-width: auto;
+  width: auto;
+  height: auto;
+  line-height: 1;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.teacherleaves-btn-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(100, 116, 139, 0.3);
+  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+}
+
+.teacherleaves-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .teacherleaves-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.teacherleaves-btn-delete {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.teacherleaves-btn-delete:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.teacherleaves-btn-delete:active {
+  transform: translateY(0);
+}
+
+.teacherleaves-btn-delete:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;

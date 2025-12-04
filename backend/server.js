@@ -20,6 +20,9 @@ import parentRoutes from './src/routes/parentRoutes.js';
 import chatRoutes from './src/routes/chatRoutes.js';
 import notificationRoutes from './src/routes/notificationRoutes.js';
 import systemNotificationRoutes from './src/routes/systemNotificationRoutes.js';
+import attendanceRoutes from './src/routes/attendanceRoutes.js';
+import examRoutes from './src/routes/examRoutes.js';
+import mentalHealthRoutes from './src/routes/mentalHealthRoutes.js';
 import Chat from './src/models/Chat.js';
 
 // Connect to MongoDB
@@ -51,6 +54,9 @@ app.use('/api/parent', parentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/system-notifications', systemNotificationRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/exams', examRoutes);
+app.use('/api/mental-health', mentalHealthRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Timetable System API' });

@@ -3,6 +3,39 @@ import DashboardLayout from '../../../Components/DashboardLayout/DashboardLayout
 import './TeacherStudents.css';
 
 const TeacherStudents = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const navigationSections = [
+    {
+      title: 'MY TEACHING',
+      items: [
+        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
+        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
+        { label: 'Timetable', icon: '📅', path: '/teacher/timetable' },
+        { label: 'Students', icon: '🎓', path: '/teacher/students' }
+      ]
+    },
+    {
+      title: 'ACADEMIC',
+      items: [
+        { label: 'Exams', icon: '✍️', path: '/teacher/exams' },
+        { label: 'Attendance', icon: '✅', path: '/teacher/attendance' }
+      ]
+    },
+    {
+      title: 'LEAVE & DUTIES',
+      items: [
+        { label: 'Leave Requests', icon: '🏖️', path: '/teacher/leaves' },
+        { label: 'Replacements', icon: '🔄', path: '/teacher/replacements' }
+      ]
+    },
+    {
+      title: 'PROFILE',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/teacher/profile' }
+      ]
+    }
+  ];
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,22 +58,13 @@ const TeacherStudents = () => {
     }
   };
 
-  const navigationSections = [
-    {
-      title: 'My Teaching',
-      items: [
-        { label: 'My Classes', icon: '📚', path: '/teacher/classes' },
-        { label: 'My Students', icon: '🎓', path: '/teacher/students' }
-      ]
-    }
-  ];
 
   return (
     <DashboardLayout
       pageTitle="My Students"
       pageDescription="View your students"
       userRole="Teacher"
-      userName="Teacher User"
+      userName={user?.name || "Teacher User"}
       navigationSections={navigationSections}
     >
       <div className="teacherstudents-container">

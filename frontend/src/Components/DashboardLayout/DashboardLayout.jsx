@@ -64,21 +64,42 @@ const DashboardLayout = ({
           </div>
 
           <nav className="dashlayout-sidebar-nav">
-            {navigationSections.map((section, idx) => (
+            {navigationSections && navigationSections.length > 0 ? navigationSections.map((section, idx) => (
               <div key={idx} className="dashlayout-nav-section">
                 <h3 className="dashlayout-nav-title">{section.title}</h3>
                 <ul className="dashlayout-nav-list">
-                  {section.items.map((item, itemIdx) => (
-                    <li key={itemIdx} className="dashlayout-nav-item">
-                      <button className="dashlayout-nav-link" onClick={item.action || go(item.path)}>
-                        <span className="dashlayout-nav-icon">{item.icon}</span>
-                        <span>{item.label}</span>
-                      </button>
-                    </li>
-                  ))}
+                  {section.items && section.items.map((item, itemIdx) => {
+                    const handleItemClick = () => {
+                      // If it's a profile item, trigger the modal instead of navigating
+                      if (item.path && item.path.includes('/profile')) {
+                        handleProfileUpdate();
+                        // Also call onClick if provided (for any additional logic)
+                        if (item.onClick) {
+                          item.onClick();
+                        }
+                        return;
+                      }
+                      // For other items, handle onClick, action, or navigation
+                      if (item.onClick) {
+                        item.onClick();
+                      } else if (item.action) {
+                        item.action();
+                      } else if (item.path) {
+                        go(item.path)();
+                      }
+                    };
+                    return (
+                      <li key={itemIdx} className="dashlayout-nav-item">
+                        <button className="dashlayout-nav-link" onClick={handleItemClick}>
+                          <span className="dashlayout-nav-icon">{item.icon}</span>
+                          <span>{item.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
-            ))}
+            )) : null}
           </nav>
 
           <div className="dashlayout-sidebar-footer">
@@ -109,10 +130,12 @@ const DashboardLayout = ({
               <input type="text" placeholder="Search..." />
               <span className="dashlayout-search-icon">🔍</span>
             </div>
-            <div className="dashlayout-header-notifications">
-              <NotificationSystem type="bell" />
-              <ChatCenter userRole={userRole} userId={userId} />
-            </div>
+            {userRole !== 'Student' && (
+              <div className="dashlayout-header-notifications">
+                <NotificationSystem type="bell" />
+                <ChatCenter userRole={userRole} userId={userId} />
+              </div>
+            )}
             <div className="dashlayout-header-profile" onClick={toggleSidebar}>
               <div className="dashlayout-profile-avatar">👤</div>
               <div className="dashlayout-profile-info">

@@ -73,17 +73,24 @@ export const generateAITimetable = async (termId, classId) => {
     await ClassTimetable.deleteMany({ class_id: classId, term_id: termId });
     
     // Step 4: Prepare subject distribution data
-    const subjectDistribution = teacherAssignments.map(assignment => ({
+    // Convert monthly course_limit to weekly (divide by 4 weeks per month)
+    const WEEKS_PER_MONTH = 4;
+    const subjectDistribution = teacherAssignments.map(assignment => {
+      // Course limit is monthly, convert to weekly periods
+      const weeklyLimit = Math.ceil(assignment.course_limit / WEEKS_PER_MONTH);
+      return {
       subjectId: assignment.subject_id._id,
       subjectName: assignment.subject_id.subject_name,
       teacherId: assignment.user_id._id,
       teacherName: assignment.user_id.name,
-      courseLimit: assignment.course_limit,
+        courseLimit: weeklyLimit, // Weekly periods needed
+        originalMonthlyLimit: assignment.course_limit, // Keep for reference
       periodsScheduled: 0,
       isLab: isLabSubject(assignment.subject_id.subject_name) // Science, Computer Science, etc.
-    }));
+      };
+    });
 
-    // Step 5: Calculate total periods needed
+    // Step 5: Calculate total periods needed (weekly)
     const totalPeriodsNeeded = subjectDistribution.reduce((sum, sub) => sum + sub.courseLimit, 0);
     const totalPeriodsAvailable = DAYS.length * ACADEMIC_PERIODS; // 5 days * 8 periods = 40
 
@@ -158,8 +165,8 @@ async function generateOptimalDistribution(subjectDistribution, classId, termId,
     timeSlots = await TimetableSlot.insertMany(defaultSlots);
   }
   
-  // Get only academic period slots (Period type) - 8 periods per day
-  const academicSlots = timeSlots.filter(slot => slot.slot_type === 'Period');
+  // Get only academic period slots (Period type) - 8 periods per day (slots 1-8 only)
+  const academicSlots = timeSlots.filter(slot => slot.slot_type === 'Period' && slot.slot_number >= 1 && slot.slot_number <= 8);
   
   // Initialize teacher schedule
   teacherAssignments.forEach(assignment => {

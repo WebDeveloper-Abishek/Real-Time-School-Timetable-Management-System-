@@ -1,3 +1,4 @@
+/* Teacher Classes CSS - Modern Design */
 .teacherclasses-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -6,26 +7,48 @@
 
 .teacherclasses-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 2rem;
 }
 
 .teacherclasses-card {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+}
+
+.teacherclasses-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .teacherclasses-card-header {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1.5rem;
+  padding: 1.75rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.teacherclasses-card-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .teacherclasses-card-header h3 {
   margin: 0;
   font-size: 1.5rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
 }
 
 .teacherclasses-card-body {
@@ -35,8 +58,17 @@
 .teacherclasses-info {
   display: flex;
   justify-content: space-between;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s;
+}
+
+.teacherclasses-info:hover {
+  background-color: #f8fafc;
+  margin: 0 -1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
 .teacherclasses-info:last-child {
@@ -46,27 +78,42 @@
 .teacherclasses-label {
   font-weight: 600;
   color: #64748b;
+  font-size: 0.875rem;
 }
 
 .teacherclasses-value {
   color: #1e293b;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
 .teacherclasses-card-footer {
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
 }
 
 .teacherclasses-btn {
   width: 100%;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-weight: 600;
+  font-size: 0.875rem;
   cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.teacherclasses-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.teacherclasses-btn:active {
+  transform: translateY(0);
 }
 
 .teacherclasses-loading,
@@ -76,5 +123,39 @@
   padding: 4rem 2rem;
   color: #64748b;
   font-size: 1.1rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+.teacherclasses-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.teacherclasses-loading::after {
+  content: '';
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .teacherclasses-container {
+    padding: 1rem;
+  }
+
+  .teacherclasses-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
