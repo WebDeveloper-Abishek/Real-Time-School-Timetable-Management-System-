@@ -263,7 +263,7 @@ const CounsellorAppointments = () => {
                 </div>
               </form>
             </div>
-          </div>
+        </div>
         )}
       </div>
     </DashboardLayout>

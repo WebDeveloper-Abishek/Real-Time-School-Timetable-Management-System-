@@ -55,12 +55,23 @@ const StudentTimetable = () => {
     
     try {
       setStudenttimetableLoading(true);
+      const token = localStorage.getItem('token') || '';
       // Fetch using student_id (preferred) or class_id
       const url = studentId 
         ? `http://localhost:5000/api/student/timetable?student_id=${studentId}${studenttimetableSelectedClass ? `&class_id=${studenttimetableSelectedClass}` : ''}`
         : `http://localhost:5000/api/student/timetable?class_id=${studenttimetableSelectedClass}`;
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch timetable');
+      }
+      
       const data = await response.json();
       setStudenttimetableTimetable(data.timetable || []);
       
@@ -87,13 +98,21 @@ const StudentTimetable = () => {
         
         // If not in user data, fetch from API using student_id
         if (user.id || user._id) {
-          const response = await fetch(`http://localhost:5000/api/student/timetable?student_id=${user.id || user._id}`);
-          const data = await response.json();
-          if (data.timetable && data.timetable.length > 0) {
-            // Extract class_id from first timetable entry
-            const classId = data.timetable[0]?.class_id?._id || data.timetable[0]?.class_id;
-            if (classId) {
-              setStudenttimetableSelectedClass(classId);
+          const token = localStorage.getItem('token') || '';
+          const response = await fetch(`http://localhost:5000/api/student/timetable?student_id=${user.id || user._id}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { 'Authorization': `Bearer ${token}` })
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.timetable && data.timetable.length > 0) {
+              // Extract class_id from first timetable entry
+              const classId = data.timetable[0]?.class_id?._id || data.timetable[0]?.class_id;
+              if (classId) {
+                setStudenttimetableSelectedClass(classId);
+              }
             }
           }
         }

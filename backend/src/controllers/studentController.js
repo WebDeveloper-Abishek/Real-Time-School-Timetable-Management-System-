@@ -5,7 +5,7 @@ import Chat from "../models/Chat.js";
 
 export const getStudentTimetable = async (req, res) => {
   try {
-    const { student_id, class_id, day_of_week } = req.query;
+    const { student_id, class_id, term_id, day_of_week } = req.query;
     
     let classIdToUse = class_id;
     
@@ -20,12 +20,14 @@ export const getStudentTimetable = async (req, res) => {
     
     // Get class timetable from ClassTimetable model
     const filter = { class_id: classIdToUse };
+    if (term_id) filter.term_id = term_id; // IMPORTANT: Filter by term_id
     if (day_of_week) filter.day_of_week = day_of_week;
     
     const timetable = await ClassTimetable.find(filter)
       .populate('subject_id', 'subject_name')
       .populate('teacher_id', 'name')
       .populate('slot_id', 'start_time end_time slot_number slot_type')
+      .populate('term_id', 'term_number')
       .sort({ day_of_week: 1, 'slot_id.slot_number': 1 });
     
     return res.json({ timetable });

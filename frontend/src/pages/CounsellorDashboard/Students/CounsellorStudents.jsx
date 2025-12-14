@@ -297,7 +297,7 @@ const CounsellorStudents = () => {
                 </div>
               </div>
             </div>
-          </div>
+        </div>
         )}
       </div>
     </DashboardLayout>

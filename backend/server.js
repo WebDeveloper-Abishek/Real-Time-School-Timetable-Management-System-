@@ -23,6 +23,7 @@ import systemNotificationRoutes from './src/routes/systemNotificationRoutes.js';
 import attendanceRoutes from './src/routes/attendanceRoutes.js';
 import examRoutes from './src/routes/examRoutes.js';
 import mentalHealthRoutes from './src/routes/mentalHealthRoutes.js';
+import weeklyTrackingRoutes from './src/routes/weeklyTrackingRoutes.js';
 import Chat from './src/models/Chat.js';
 
 // Connect to MongoDB
@@ -57,6 +58,7 @@ app.use('/api/system-notifications', systemNotificationRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/mental-health', mentalHealthRoutes);
+app.use('/api/weekly-tracking', weeklyTrackingRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to Timetable System API' });
@@ -168,4 +170,37 @@ io.on('connection', (socket) => {
   });
 });
 
-httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Weekly course limit reduction scheduler
+// Runs every Sunday at 11:59 PM to process the completed week
+let weeklySchedulerInterval = null;
+
+const startWeeklyScheduler = () => {
+  // Check every hour if it's time to process weekly reduction
+  weeklySchedulerInterval = setInterval(async () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 5 = Friday
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    
+    // Process on Friday at 11:59 PM (end of week) or Sunday at 12:00 AM (start of new week)
+    if ((dayOfWeek === 5 && hour === 23 && minute === 59) || 
+        (dayOfWeek === 0 && hour === 0 && minute === 0)) {
+      try {
+        console.log('🕐 Running scheduled weekly course limit reduction...');
+        const { processWeeklyCourseLimitReduction } = await import('./src/services/weeklyTrackingService.js');
+        await processWeeklyCourseLimitReduction();
+        console.log('✅ Weekly course limit reduction completed');
+      } catch (error) {
+        console.error('❌ Error in scheduled weekly reduction:', error);
+      }
+    }
+  }, 60 * 60 * 1000); // Check every hour
+  
+  console.log('📅 Weekly course limit reduction scheduler started');
+};
+
+httpServer.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  // Start weekly scheduler after server starts
+  startWeeklyScheduler();
+});

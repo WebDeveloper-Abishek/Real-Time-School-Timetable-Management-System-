@@ -143,6 +143,13 @@ const AdminLeaves = () => {
   useEffect(() => {
     if (currentTermId) {
       adminleavesFetchLeaves(currentTermId);
+      
+      // Poll for updates every 5 seconds for real-time collaboration
+      const interval = setInterval(() => {
+        adminleavesFetchLeaves(currentTermId);
+      }, 5000);
+      
+      return () => clearInterval(interval);
     }
   }, [currentTermId]);
 

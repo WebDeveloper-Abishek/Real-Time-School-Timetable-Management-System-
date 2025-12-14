@@ -35,6 +35,13 @@ const AdminReplacements = () => {
 
   useEffect(() => {
     fetchReplacements();
+    
+    // Poll for updates every 5 seconds for real-time collaboration
+    const interval = setInterval(() => {
+      fetchReplacements();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const getFilteredReplacements = () => {

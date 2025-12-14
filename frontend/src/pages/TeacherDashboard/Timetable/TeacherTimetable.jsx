@@ -8,6 +8,38 @@ const TeacherTimetable = () => {
   const [teachertimetableLoading, setTeachertimetableLoading] = useState(false);
   const [teachertimetableTeacherId, setTeachertimetableTeacherId] = useState('');
   const [teachertimetableAlerts, setTeachertimetableAlerts] = useState([]);
+  
+  const navigationSections = [
+    {
+      title: 'My Dashboard',
+      items: [
+        { label: 'Teacher Home', icon: '🏠', path: '/teacher/dashboard' },
+        { label: 'My Timetable', icon: '📅', path: '/teacher/timetable' },
+        { label: 'My Classes', icon: '👥', path: '/teacher/classes' },
+        { label: 'My Students', icon: '🎓', path: '/teacher/students' }
+      ]
+    },
+    {
+      title: 'Teaching',
+      items: [
+        { label: 'Attendance', icon: '✅', path: '/teacher/attendance' },
+        { label: 'Exams', icon: '📊', path: '/teacher/exams' }
+      ]
+    },
+    {
+      title: 'Leaves & Replacements',
+      items: [
+        { label: 'Leaves', icon: '📝', path: '/teacher/leaves' },
+        { label: 'Replacements', icon: '🔄', path: '/teacher/replacements' }
+      ]
+    },
+    {
+      title: 'Profile',
+      items: [
+        { label: 'Update Profile', icon: '✏️', path: '/teacher/profile' }
+      ]
+    }
+  ];
 
   const teachertimetableAddAlert = (message, type = 'success') => {
     const id = Date.now();
@@ -16,11 +48,20 @@ const TeacherTimetable = () => {
   };
 
   const teachertimetableFetchTimetable = async () => {
-    if (!teachertimetableTeacherId) return;
-    
     try {
       setTeachertimetableLoading(true);
-      const response = await fetch(`http://localhost:5000/api/admin/teacher/timetable?teacher_id=${teachertimetableTeacherId}`);
+      const token = localStorage.getItem('token') || '';
+      // If teacher_id is available, use it; otherwise the backend will use req.user.id
+      const url = teachertimetableTeacherId 
+        ? `http://localhost:5000/api/teacher/timetable?teacher_id=${teachertimetableTeacherId}`
+        : `http://localhost:5000/api/teacher/timetable`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch timetable');
       }

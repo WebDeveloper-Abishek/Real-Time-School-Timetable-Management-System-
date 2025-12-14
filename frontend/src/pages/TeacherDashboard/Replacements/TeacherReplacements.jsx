@@ -97,7 +97,12 @@ const TeacherReplacements = () => {
   };
 
   const teacherreplacementsDeclineRequest = async (notificationId) => {
-    const reason = prompt('Enter reason for declining (optional):');
+    const reason = window.prompt('Enter reason for declining (optional):');
+    
+    if (reason === null) {
+      // User cancelled the prompt
+      return;
+    }
     
     try {
       const token = localStorage.getItem('token') || '';
@@ -125,7 +130,14 @@ const TeacherReplacements = () => {
 
   useEffect(() => {
     teacherreplacementsFetchRequests();
-  }, []);
+    
+    // Poll for new replacement requests every 5 seconds for real-time updates
+    const interval = setInterval(() => {
+      teacherreplacementsFetchRequests();
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [user.id, user._id]);
 
 
   return (

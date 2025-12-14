@@ -22,12 +22,13 @@ export const createSlot = async (req, res) => {
 
 export const listClassDay = async (req, res) => {
   try {
-    const { class_id, day_of_week } = req.query;
+    const { class_id, term_id, day_of_week } = req.query;
     if (!class_id) {
       return res.status(400).json({ message: "class_id is required" });
     }
     
     const filter = { class_id };
+    if (term_id) filter.term_id = term_id; // IMPORTANT: Filter by term_id
     if (day_of_week) filter.day_of_week = day_of_week;
     
     // Get ClassTimetable entries with slot details
@@ -36,7 +37,8 @@ export const listClassDay = async (req, res) => {
       .populate('subject_id', 'subject_name')
       .populate('teacher_id', 'name')
       .populate('class_id', 'class_name grade section')
-      .sort({ day_of_week: 1 });
+      .populate('term_id', 'term_number')
+      .sort({ day_of_week: 1, 'slot_id.slot_number': 1 });
     
     // Transform to include slot details in response
     const transformedList = list.map(ct => ({
@@ -188,15 +190,17 @@ export const decideReplacement = async (req, res) => {
 // Get Teacher Timetable - Based on ClassTimetable (shows which classes teacher should go to)
 export const getTeacherTimetable = async (req, res) => {
   try {
-    const { teacher_id, term_id } = req.query;
+    // Use teacher_id from query or from authenticated user
+    const teacher_id = req.query.teacher_id || req.user?.id || req.user?._id;
+    
     if (!teacher_id) {
       return res.status(400).json({ message: "teacher_id is required" });
     }
     
     // Build query
     const query = { teacher_id };
-    if (term_id) {
-      query.term_id = term_id;
+    if (req.query.term_id) {
+      query.term_id = req.query.term_id;
     }
     
     // Get timetable from ClassTimetable (where teacher is assigned)

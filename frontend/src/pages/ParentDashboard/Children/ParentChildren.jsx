@@ -62,11 +62,11 @@ const ParentChildren = () => {
             children.map((child) => (
               <div key={child._id || child.id} className="parentchildren-card">
                 <div className="parentchildren-avatar">👶</div>
-                <h3>{child.name}</h3>
+              <h3>{child.name}</h3>
                 <p>Class: {child.class_name || 'Not Assigned'}</p>
                 <p>Role: {child.role}</p>
-                <button className="parentchildren-btn">View Details</button>
-              </div>
+              <button className="parentchildren-btn">View Details</button>
+            </div>
             ))
           )}
         </div>

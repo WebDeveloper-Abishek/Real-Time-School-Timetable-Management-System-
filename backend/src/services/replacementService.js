@@ -243,12 +243,17 @@ async function findTeachersTeachingSameClass(classId, dayOfWeek, slotId, exclude
     day_of_week: dayOfWeek,
     teacher_id: { $ne: excludeTeacherId }
   })
-    .populate('teacher_id', 'name email role')
+    .populate({
+      path: 'teacher_id',
+      match: { is_deleted: { $ne: true } },
+      select: 'name email role'
+    })
     .distinct('teacher_id');
 
-  // Filter to only those who are free during the required slot
+  // Filter out nulls (deleted teachers) and check if free
   const availableTeachers = [];
   for (const teacher of classTeachers) {
+    if (!teacher) continue; // Skip deleted teachers
     const isFree = await isTeacherFree(teacher._id, dayOfWeek, slotId, isDoublePeriod);
     if (isFree) {
       availableTeachers.push(teacher);
@@ -262,16 +267,21 @@ async function findTeachersTeachingSameClass(classId, dayOfWeek, slotId, exclude
  * Find teachers who teach this subject for this class and are free during the slot
  */
 async function findTeachersForSubject(subjectId, classId, dayOfWeek, slotId, excludeTeacherId, isDoublePeriod = false) {
-  // Get teachers assigned to this subject for this class
+  // Get teachers assigned to this subject for this class (exclude deleted)
   const subjectAssignments = await TeacherSubjectAssignment.find({
     subject_id: subjectId,
     class_id: classId,
     user_id: { $ne: excludeTeacherId }
-  }).populate('user_id', 'name email role');
+  }).populate({
+    path: 'user_id',
+    match: { is_deleted: { $ne: true } },
+    select: 'name email role'
+  });
 
   // Check which ones are free during this slot
   const freeTeachers = [];
   for (const assignment of subjectAssignments) {
+    if (!assignment.user_id) continue; // Skip deleted teachers
     const teacherId = assignment.user_id._id;
     const isFree = await isTeacherFree(teacherId, dayOfWeek, slotId, isDoublePeriod);
     if (isFree) {
@@ -328,10 +338,10 @@ async function sortTeachersByCourseLimit(teachers, subjectId, classId) {
 
 /**
  * Check if teacher is free during specific slot
- * Also checks for double period requirements
+ * Also checks for double period requirements and replacement assignments
  */
 async function isTeacherFree(teacherId, dayOfWeek, slotId, isDoublePeriod = false) {
-  // Check if teacher has an assignment in this slot
+  // Check if teacher has a regular assignment in this slot
   const existingAssignment = await ClassTimetable.findOne({
     teacher_id: teacherId,
     day_of_week: dayOfWeek,
@@ -339,6 +349,19 @@ async function isTeacherFree(teacherId, dayOfWeek, slotId, isDoublePeriod = fals
   });
 
   if (existingAssignment) {
+    return false;
+  }
+
+  // Check if teacher has an active replacement assignment in this slot
+  const activeReplacement = await ReplacementAssignment.findOne({
+    replacement_teacher_id: teacherId,
+    day_of_week: dayOfWeek,
+    slot_id: slotId,
+    accepted: true,
+    status: { $in: ['Pending', 'Accepted', 'Active'] }
+  });
+
+  if (activeReplacement) {
     return false;
   }
 
@@ -353,6 +376,7 @@ async function isTeacherFree(teacherId, dayOfWeek, slotId, isDoublePeriod = fals
       });
 
       if (nextSlot) {
+        // Check regular assignment
         const nextSlotAssignment = await ClassTimetable.findOne({
           teacher_id: teacherId,
           day_of_week: dayOfWeek,
@@ -361,6 +385,19 @@ async function isTeacherFree(teacherId, dayOfWeek, slotId, isDoublePeriod = fals
 
         if (nextSlotAssignment) {
           return false; // Teacher is busy in next slot
+        }
+
+        // Check replacement assignment for next slot
+        const nextSlotReplacement = await ReplacementAssignment.findOne({
+          replacement_teacher_id: teacherId,
+          day_of_week: dayOfWeek,
+          slot_id: nextSlot._id,
+          accepted: true,
+          status: { $in: ['Pending', 'Accepted', 'Active'] }
+        });
+
+        if (nextSlotReplacement) {
+          return false; // Teacher has replacement in next slot
         }
       }
     }
@@ -481,6 +518,7 @@ export const acceptReplacement = async (notificationId, teacherId) => {
     }
 
     replacementAssignment.accepted = true;
+    replacementAssignment.status = 'Accepted';
     await replacementAssignment.save();
 
     // Update ClassTimetable to reflect the replacement teacher
